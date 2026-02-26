@@ -1,0 +1,33 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>My RSS Site</title>
+  <style>
+    body { font-family: Helvetica, sans-serif; margin: 2rem; background: #fff; color: #111; }
+    a { text-decoration: none; color: #007acc; }
+    ul { list-style: none; padding: 0; }
+    li { margin-bottom: 1rem; }
+  </style>
+</head>
+<body>
+  <h1>My RSS Feed</h1>
+  <ul id="feed"></ul>
+
+  <script>
+    async function loadRSS() {
+      const proxy = "https://api.rss2json.com/v1/api.json?rss_url=";
+      const feedUrl = encodeURIComponent("https://your-rss-link.com/feed"); // replace with your RSS URL
+      const res = await fetch(proxy + feedUrl);
+      const data = await res.json();
+      const list = document.getElementById('feed');
+      data.items.forEach(item => {
+        const li = document.createElement('li');
+        li.innerHTML = `<a href="${item.link}" target="_blank">${item.title}</a>`;
+        list.appendChild(li);
+      });
+    }
+    loadRSS();
+  </script>
+</body>
+</html>

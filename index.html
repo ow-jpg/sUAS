@@ -13,9 +13,7 @@
       font-family: Courier, serif;
     }
 
-    body {
-      padding: 2rem;
-    }
+    body { padding: 2rem; }
 
     h1 {
       font-size: 1.6rem;
@@ -36,37 +34,26 @@
       gap: 2rem;
     }
 
-    .column {
-      flex: 1;
-      min-width: 0; /* prevents overflow with grid children */
-    }
+    .column { flex: 1; min-width: 0; }
 
     ul {
       list-style: none;
       padding: 0;
       max-height: 500px;
-      overflow-y: auto; /* scroll like a rolling list */
+      overflow-y: auto;
     }
 
-    li {
-      margin-bottom: 1rem;
-    }
+    li { margin-bottom: 1rem; }
 
-    a {
-      text-decoration: none;
-      color: #4da3ff;
-    }
+    a { text-decoration: none; color: #4da3ff; }
+    a:hover { text-decoration: underline; }
 
-    a:hover {
-      text-decoration: underline;
-    }
-
-    /* --- Card styles for news feed --- */
+    /* --- News card styles --- */
     .news-list {
       display: grid;
       grid-template-columns: 1fr;
-      gap: 0.8rem; /* space between cards */
-      padding-right: 0.25rem; /* tiny room for scrollbar */
+      gap: 0.8rem;
+      padding-right: 0.25rem;
     }
 
     .card {
@@ -92,11 +79,9 @@
       line-height: 1.35;
     }
 
-    .card a.title:hover {
-      text-decoration: underline;
-    }
+    .card a.title:hover { text-decoration: underline; }
 
-    .card .meta {
+    .meta {
       margin-top: 0.55rem;
       display: flex;
       flex-direction: column;            /* stack lines: publication, author, date */
@@ -104,23 +89,22 @@
       gap: 0.35rem;
     }
 
-    .card .meta .source {
-      color: #f1e9fa;                    /* publication line (2nd) */
+    .meta .source {
+      color: #f1e9fa;                    /* publication line */
       font-size: 0.9rem;
       font-weight: 600;
     }
 
-    .card .meta .author {
-      color: #e9dbf6;                    /* author line (3rd) */
+    .meta .author {
+      color: #e9dbf6;                    /* author line */
       font-size: 0.88rem;
     }
 
-    .card .meta .date {
-      color: #d9c8ee;                    /* date line (4th) */
+    .meta .date {
+      color: #d9c8ee;                    /* date line */
       font-size: 0.86rem;
     }
 
-    /* Status message */
     .status {
       color: #cfcfcf;
       background: #2a2a2a;
@@ -137,11 +121,8 @@
       color: #ffbcbc;
     }
 
-    /* Responsive: stack columns on narrow screens */
     @media (max-width: 900px) {
-      .columns {
-        flex-direction: column;
-      }
+      .columns { flex-direction: column; }
     }
   </style>
 </head>
@@ -170,15 +151,13 @@
   </div>
 
   <script>
-    // --------- Helpers ---------
+    // ---------------- Helpers ----------------
     function formatDate(dateStr) {
       try {
         var d = new Date(dateStr);
         if (isNaN(d.getTime())) return null;
         return d.toLocaleDateString(undefined, { day: 'numeric', month: 'short', year: 'numeric' });
-      } catch (e) {
-        return null;
-      }
+      } catch (e) { return null; }
     }
 
     function showStatus(message, isError) {
@@ -189,12 +168,10 @@
       el.style.display = message ? 'block' : 'none';
     }
 
-    // Split a Google News style title "Headline - Outlet" or "Headline — Outlet"
+    // Split a Google News style title "Headline - Outlet" (FIRST hyphen) or "Headline — Outlet"
     // Returns {headline, publication}
     function splitTitle(title) {
       if (!title) return { headline: '', publication: '' };
-
-      // Prefer splitting at the FIRST ' - ' (as you requested)
       var hyphenIdx = title.indexOf(' - ');
       if (hyphenIdx !== -1) {
         return {
@@ -202,8 +179,6 @@
           publication: title.slice(hyphenIdx + 3).trim()
         };
       }
-
-      // Fallback: FIRST ' — ' (em dash) if present
       var emDashIdx = title.indexOf(' — ');
       if (emDashIdx !== -1) {
         return {
@@ -211,107 +186,173 @@
           publication: title.slice(emDashIdx + 3).trim()
         };
       }
-
-      // No delimiter found
       return { headline: title.trim(), publication: '' };
     }
 
-    // --------- Core feed loader ---------
-    async function loadRSS(feedUrl, elementId) {
-      // Ask for up to 30 items from rss2json
-      var proxyBase = "https://api.rss2json.com/v1/api.json?count=30&rss_url=";
-      var encodedUrl = encodeURIComponent(feedUrl);
+    // Extract text of the first matching subelement
+    function textOf(node, tag) {
+      var els = node.getElementsByTagName(tag);
+      if (els && els.length) return (els[0].textContent || '').trim();
+      return '';
+    }
+
+    // ---------------- RSS loader (prefers direct RSS via AllOrigins; falls back to rss2json) ----------------
+    async function fetchRSSXmlViaAllOrigins(feedUrl) {
+      // "raw" returns the raw RSS XML; avoids CORS issues
+      var url = 'https://api.allorigins.win/raw?url=' + encodeURIComponent(feedUrl);
+      var res = await fetch(url);
+      if (!res.ok) throw new Error('AllOrigins HTTP ' + res.status);
+      var xmlText = await res.text();
+      var parser = new DOMParser();
+      var xml = parser.parseFromString(xmlText, 'text/xml');
+      var parserErr = xml.getElementsByTagName('parsererror');
+      if (parserErr && parserErr.length) throw new Error('XML parse error');
+      return xml;
+    }
+
+    async function fetchRSSViaRss2Json(feedUrl, count) {
+      var url = 'https://api.rss2json.com/v1/api.json?count=' + (count || 30) + '&rss_url=' + encodeURIComponent(feedUrl);
+      var res = await fetch(url);
+      if (!res.ok) throw new Error('rss2json HTTP ' + res.status);
+      return await res.json();
+    }
+
+    function renderNewsItemsFromXml(xmlDoc, elementId, maxItems) {
       var list = document.getElementById(elementId);
+      list.innerHTML = '';
+      var items = xmlDoc.getElementsByTagName('item');
+      var n = Math.min(items.length, maxItems || 30);
 
-      // Loading state
-      if (elementId === "feed2") showStatus('Loading news…', false);
-      list.innerHTML = (elementId === "feed2")
-        ? '<li class="card" aria-busy="true" style="opacity:.8">Loading…</li>'
-        : '';
+      if (!n) {
+        var emptyLi = document.createElement('li');
+        emptyLi.className = 'card';
+        emptyLi.textContent = 'No items available right now.';
+        list.appendChild(emptyLi);
+        return;
+      }
 
-      try {
-        var res = await fetch(proxyBase + encodedUrl);
-        if (!res || !res.ok) throw new Error('Network error ' + (res ? res.status : ''));
+      for (var i = 0; i < n; i++) {
+        var it = items[i];
+        var rawTitle = textOf(it, 'title') || 'Untitled';
+        var link = textOf(it, 'link') || '#';
+        var pubDate = textOf(it, 'pubDate');
+        var dateText = pubDate ? formatDate(pubDate) : null;
 
-        var data = await res.json();
-        list.innerHTML = ""; // clear
+        // Google News sometimes includes <source>Outlet</source>
+        var sourceNodes = it.getElementsByTagName('source');
+        var source = (sourceNodes && sourceNodes.length) ? (sourceNodes[0].textContent || '').trim() : '';
 
-        if (elementId === "feed2") showStatus('', false);
+        var split = splitTitle(rawTitle);
+        var displayTitle = split.headline || 'Untitled';
 
-        var isNews = (elementId === "feed2");
-        var items = (data && data.items) ? data.items : [];
+        // Publication line priority: explicit <source> first, else part after hyphen/em dash
+        var publication = source || split.publication || '';
 
-        if (!items.length) {
-          var emptyLi = document.createElement('li');
-          emptyLi.className = isNews ? 'card' : '';
-          emptyLi.textContent = 'No items available right now.';
-          list.appendChild(emptyLi);
-          return;
+        // Author: some items include <dc:creator>, <author>, etc.
+        var author = '';
+        var creators = it.getElementsByTagName('dc:creator');
+        if (creators && creators.length) author = (creators[0].textContent || '').trim();
+        if (!author) author = textOf(it, 'author'); // fallback if present
+
+        var li = document.createElement('li');
+        li.className = 'card';
+
+        var html = '';
+        html += '<a class="title" href="' + link + '" target="_blank" rel="noopener noreferrer">' + displayTitle + '</a>';
+        html += '<div class="meta">';
+        if (publication) html += '<div class="source">' + publication + '</div>';
+        if (author) html += '<div class="author">' + author + '</div>';
+        if (dateText) html += '<div class="date">' + dateText + '</div>';
+        html += '</div>';
+
+        li.innerHTML = html;
+        list.appendChild(li);
+      }
+    }
+
+    function renderNewsItemsFromRss2Json(json, elementId) {
+      var list = document.getElementById(elementId);
+      list.innerHTML = '';
+      var items = (json && json.items) ? json.items : [];
+      if (!items.length) {
+        var emptyLi = document.createElement('li');
+        emptyLi.className = 'card';
+        emptyLi.textContent = 'No items available right now.';
+        list.appendChild(emptyLi);
+        return;
+      }
+
+      var n = Math.min(items.length, 30);
+
+      for (var i = 0; i < n; i++) {
+        var item = items[i];
+        var rawTitle = item && item.title ? item.title : 'Untitled';
+        var link = item && item.link ? item.link : '#';
+        var dateText = (item && item.pubDate) ? formatDate(item.pubDate) : null;
+
+        var split = splitTitle(rawTitle);
+        var displayTitle = split.headline || 'Untitled';
+        var publication = (item && item.author) ? item.author : (split.publication || '');
+        var author = (item && item.author) ? item.author : '';
+
+        var li = document.createElement('li');
+        li.className = 'card';
+
+        var html = '';
+        html += '<a class="title" href="' + link + '" target="_blank" rel="noopener noreferrer">' + displayTitle + '</a>';
+        if (publication || author || dateText) {
+          html += '<div class="meta">';
+          if (publication) html += '<div class="source">' + publication + '</div>';
+          if (author) html += '<div class="author">' + author + '</div>';
+          if (dateText) html += '<div class="date">' + dateText + '</div>';
+          html += '</div>';
         }
 
-        items.forEach(function(item) {
-          var li = document.createElement('li');
-
-          var rawTitle = item && item.title ? item.title : 'Untitled';
-          var split = splitTitle(rawTitle);
-          var displayTitle = split.headline || 'Untitled';    // trimmed at first hyphen/em dash
-          var publication = split.publication || '';           // second line
-          var link = item && item.link ? item.link : '#';
-          var author = (item && item.author) ? item.author : ''; // third line (if present)
-          var dateText = (item && item.pubDate) ? formatDate(item.pubDate) : null; // fourth line
-
-          if (isNews) {
-            li.className = 'card';
-
-            var html = '';
-            // Title (top, centered)
-            html += '<a class="title" href="' + link + '" target="_blank" rel="noopener noreferrer">' + displayTitle + '</a>';
-
-            // Meta block (publication, author, date each on its own line)
-            html += '<div class="meta">';
-            if (publication) {
-              html += '<div class="source">' + publication + '</div>';
-            }
-            if (author) {
-              html += '<div class="author">' + author + '</div>';
-            }
-            if (dateText) {
-              html += '<div class="date">' + dateText + '</div>';
-            }
-            html += '</div>';
-
-            li.innerHTML = html;
-          } else {
-            // Simple list for other columns
-            li.innerHTML =
-              '<a href="' + link + '" target="_blank" rel="noopener noreferrer">' + displayTitle + '</a>';
-          }
-
-          list.appendChild(li);
-        });
-
-      } catch (err) {
-        console.error('RSS load error:', err);
-        list.innerHTML = "";
-        var li = document.createElement('li');
-        li.className = (elementId === "feed2") ? 'card' : '';
-        li.textContent = 'Could not load feed. Try again later.';
+        li.innerHTML = html;
         list.appendChild(li);
-        if (elementId === "feed2") {
+      }
+    }
+
+    // ---------------- Controller ----------------
+    async function loadNews() {
+      var list = document.getElementById('feed2');
+      showStatus('Loading news…', false);
+      list.innerHTML = '<li class="card" aria-busy="true" style="opacity:.8">Loading…</li>';
+
+      // Updated Google News RSS query with your comprehensive terms
+      var feedUrl =
+        'https://news.google.com/rss/search?q=' +
+        encodeURIComponent('military sUAS use OR sUAS combat OR Armed sUAS OR Military FPV Drone OR FPV Drone attack OR FPV Drone strike OR Commercial drone attack OR commercial drone warfare OR sUAS warfare OR sUAS defence OR c-sUAS');
+
+      try {
+        // Preferred path: raw RSS via AllOrigins (less likely to rate limit)
+        var xml = await fetchRSSXmlViaAllOrigins(feedUrl);
+        renderNewsItemsFromXml(xml, 'feed2', 30);
+        showStatus('', false); // hide status
+      } catch (e1) {
+        console.warn('AllOrigins path failed, trying rss2json fallback:', e1);
+        try {
+          // Fallback path: rss2json with count=30
+          var json = await fetchRSSViaRss2Json(feedUrl, 30);
+          renderNewsItemsFromRss2Json(json, 'feed2');
+          showStatus('', false);
+        } catch (e2) {
+          console.error('rss2json fallback failed:', e2);
+          list.innerHTML = '';
+          var li = document.createElement('li');
+          li.className = 'card';
+          li.textContent = 'Could not load feed. Try again later.';
+          list.appendChild(li);
           showStatus('Could not load news (network issue or rate limiting). Will retry automatically.', true);
         }
       }
     }
 
-    // --------- Configure & refresh ---------
-    // Google News RSS query
-    var newsFeed = "https://news.google.com/rss/search?q=sUAS+military+operations+OR+armed+drones";
-
     function refreshFeeds() {
-      loadRSS(newsFeed, "feed2");
-      // When ready, you can add:
-      // loadRSS(feedUrlForSocial, "feed1");
-      // loadRSS(feedUrlForAcademia, "feed3");
+      loadNews();
+      // When you add these, call loadRSS for them similarly:
+      // loadSocial();
+      // loadAcademia();
     }
 
     refreshFeeds(); // initial load

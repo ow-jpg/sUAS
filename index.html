@@ -42,6 +42,8 @@
     ul {
       list-style: none;
       padding: 0;
+      max-height: 500px;
+      overflow-y: auto; /* makes it scroll like a rolling list */
     }
 
     li {
@@ -87,6 +89,8 @@
       const data = await res.json();
       const list = document.getElementById(elementId);
 
+      list.innerHTML = ""; // clear existing items before refresh
+
       data.items.forEach(item => {
         const li = document.createElement('li');
         li.innerHTML = `<a href="${item.link}" target="_blank">${item.title}</a>`;
@@ -94,9 +98,17 @@
       });
     }
 
-    loadRSS("https://your-social-rss-link.com/feed", "feed1");
-    loadRSS("https://news.google.com/rss/search?q=sUAS+military+operations+OR+armed+drones", "feed2");
-    loadRSS("https://your-academia-rss-link.com/feed", "feed3");
+    // NEWS FEED (Google News query you provided)
+    const newsFeed = "https://news.google.com/rss/search?q=sUAS+military+operations+OR+armed+drones";
+
+    function refreshFeeds() {
+      loadRSS(newsFeed, "feed2");
+    }
+
+    refreshFeeds(); // initial load
+
+    // Auto-refresh every 5 minutes (300000 ms)
+    setInterval(refreshFeeds, 300000);
   </script>
 
 </body>

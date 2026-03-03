@@ -34,9 +34,24 @@
     a { text-decoration: none; color: #4da3ff; }
     a:hover { text-decoration: underline; }
 
+    /* ── Shared scroll wrap ── */
+    .scroll-wrap {
+      max-height: 520px;
+      overflow-y: auto;
+      padding-right: 6px;
+      /* Reduced fade: starts at 92% so only the very bottom fades */
+      -webkit-mask-image: linear-gradient(to bottom, black 92%, transparent 100%);
+      mask-image: linear-gradient(to bottom, black 92%, transparent 100%);
+    }
+
+    .scroll-wrap::-webkit-scrollbar { width: 5px; }
+    .scroll-wrap::-webkit-scrollbar-track { background: transparent; }
+    .scroll-wrap::-webkit-scrollbar-thumb { background: #3a3a3a; border-radius: 4px; }
+    .scroll-wrap::-webkit-scrollbar-thumb:hover { background: #5a4370; }
+
     /* ── X column ── */
     #x-embed-container {
-      display: none; /* hidden until embed confirmed working */
+      display: none;
       border-radius: 10px;
       overflow: hidden;
       border: 1px solid #333;
@@ -48,7 +63,6 @@
       border: none !important;
     }
 
-    /* Fallback account cards — shown by default */
     .x-fallback-header {
       font-size: 0.82rem;
       color: #888;
@@ -56,18 +70,6 @@
     }
 
     .x-fallback-header a { color: #4da3ff; }
-
-    .x-scroll-wrap {
-      max-height: 520px;
-      overflow-y: auto;
-      padding-right: 6px;
-      -webkit-mask-image: linear-gradient(to bottom, black 80%, transparent 100%);
-      mask-image: linear-gradient(to bottom, black 80%, transparent 100%);
-    }
-
-    .x-scroll-wrap::-webkit-scrollbar { width: 5px; }
-    .x-scroll-wrap::-webkit-scrollbar-track { background: transparent; }
-    .x-scroll-wrap::-webkit-scrollbar-thumb { background: #2a2a2a; border-radius: 4px; }
 
     .account-card {
       display: flex;
@@ -78,11 +80,13 @@
       padding: 0.75rem 0.9rem;
       margin-bottom: 0.6rem;
       transition: border-color 0.15s ease, transform 0.12s ease;
+      box-shadow: 0 0 10px rgba(77, 163, 255, 0.06);
     }
 
     .account-card:hover {
       border-color: #4da3ff;
       transform: translateY(-1px);
+      box-shadow: 0 0 14px rgba(77, 163, 255, 0.13);
     }
 
     .account-card .handle {
@@ -93,34 +97,15 @@
     }
 
     .account-card .handle:hover { text-decoration: underline; }
+    .account-card .desc { font-size: 0.82rem; color: #aaa; line-height: 1.4; }
+    .account-card .tag { font-size: 0.72rem; color: #7a5a96; margin-top: 0.25rem; }
 
-    .account-card .desc {
-      font-size: 0.82rem;
-      color: #aaa;
-      line-height: 1.4;
+    /* ── News & academia cards ── */
+    .news-list, .academia-list {
+      display: grid;
+      grid-template-columns: 1fr;
+      gap: 0.8rem;
     }
-
-    .account-card .tag {
-      font-size: 0.72rem;
-      color: #7a5a96;
-      margin-top: 0.25rem;
-    }
-
-    /* ── News column ── */
-    .news-scroll-wrap {
-      max-height: 520px;
-      overflow-y: auto;
-      padding-right: 6px;
-      -webkit-mask-image: linear-gradient(to bottom, black 80%, transparent 100%);
-      mask-image: linear-gradient(to bottom, black 80%, transparent 100%);
-    }
-
-    .news-scroll-wrap::-webkit-scrollbar { width: 5px; }
-    .news-scroll-wrap::-webkit-scrollbar-track { background: transparent; }
-    .news-scroll-wrap::-webkit-scrollbar-thumb { background: #5a4370; border-radius: 4px; }
-    .news-scroll-wrap::-webkit-scrollbar-thumb:hover { background: #7a5a96; }
-
-    .news-list { display: grid; grid-template-columns: 1fr; gap: 0.8rem; }
 
     .card {
       background: #4B365F;
@@ -129,11 +114,13 @@
       padding: 0.9rem 1rem;
       transition: transform 0.12s ease, box-shadow 0.12s ease, border-color 0.2s ease;
       text-align: center;
+      /* Soft glow: lighter shade of the card purple */
+      box-shadow: 0 0 12px rgba(100, 65, 120, 0.35);
     }
 
     .card:hover {
       transform: translateY(-1px);
-      box-shadow: 0 6px 14px rgba(0,0,0,0.35);
+      box-shadow: 0 0 20px rgba(120, 80, 150, 0.55);
       border-color: #5a4370;
     }
 
@@ -147,6 +134,18 @@
 
     .card a.title:hover { text-decoration: underline; }
 
+    /* Academia card slight colour variation to distinguish from news */
+    .academia-card {
+      background: #2e3d52;
+      border: 1px solid #263547;
+      box-shadow: 0 0 12px rgba(50, 90, 130, 0.35);
+    }
+
+    .academia-card:hover {
+      box-shadow: 0 0 20px rgba(60, 110, 160, 0.55);
+      border-color: #3a5472;
+    }
+
     .meta {
       margin-top: 0.55rem;
       display: flex;
@@ -155,9 +154,15 @@
       gap: 0.35rem;
     }
 
+    /* News meta colours */
     .meta .source { color: #f1e9fa; font-size: 0.9rem; font-weight: 600; }
     .meta .author { color: #e9dbf6; font-size: 0.88rem; }
     .meta .date   { color: #d9c8ee; font-size: 0.86rem; }
+
+    /* Academia meta colours */
+    .academia-card .meta .source { color: #c8dff5; }
+    .academia-card .meta .author { color: #b0cce8; }
+    .academia-card .meta .date   { color: #96b8d8; }
 
     .status {
       color: #cfcfcf;
@@ -181,11 +186,9 @@
 
   <div class="columns">
 
-    <!-- X column: account cards shown immediately; embed attempted silently in background -->
+    <!-- X column -->
     <div class="column">
       <h2>X</h2>
-
-      <!-- Embed container — hidden until confirmed working -->
       <div id="x-embed-container">
         <a class="twitter-timeline"
            href="https://x.com/i/lists/2028797011194237024"
@@ -194,14 +197,12 @@
            data-chrome="noheader nofooter noborders transparent">
         </a>
       </div>
-
-      <!-- Account cards — visible by default -->
       <div id="x-fallback">
         <p class="x-fallback-header">
           curated accounts —
           <a href="https://x.com/i/lists/2028797011194237024" target="_blank" rel="noopener noreferrer">open full list on X ↗</a>
         </p>
-        <div class="x-scroll-wrap">
+        <div class="scroll-wrap">
           <div id="account-cards"></div>
         </div>
       </div>
@@ -211,7 +212,7 @@
     <div class="column">
       <h2>news</h2>
       <div id="news-status" class="status" style="display:none;"></div>
-      <div class="news-scroll-wrap">
+      <div class="scroll-wrap">
         <ul id="feed2" class="news-list"></ul>
       </div>
     </div>
@@ -219,14 +220,16 @@
     <!-- Academia column -->
     <div class="column">
       <h2>academia</h2>
-      <ul id="feed3"></ul>
+      <div id="academia-status" class="status" style="display:none;"></div>
+      <div class="scroll-wrap">
+        <ul id="feed3" class="academia-list"></ul>
+      </div>
     </div>
 
   </div>
 
-  <!-- X widget loaded async and deferred — won't block page render -->
   <script>
-    /* ── Account cards (rendered immediately) ──────────────────────────────── */
+    /* ── Account cards ─────────────────────────────────────────────────────── */
     var ACCOUNTS = [
       { handle: 'UAWeapons',       desc: 'Ukrainian weapons & drone footage tracker',                                          tag: 'OSINT · battlefield' },
       { handle: 'DefMon3',         desc: 'Detailed OSINT, frequent FPV footage & analysis',                                    tag: 'OSINT · battlefield' },
@@ -262,10 +265,7 @@
       });
     })();
 
-    /* ── Attempt X embed silently after page is interactive ────────────────────
-       If twttr renders a tall enough iframe, swap it in and hide the cards.
-       Otherwise do nothing — cards stay visible.
-    */
+    /* X embed attempted silently after load */
     window.addEventListener('load', function() {
       var script = document.createElement('script');
       script.src = 'https://platform.twitter.com/widgets.js';
@@ -274,7 +274,6 @@
         if (!window.twttr || !window.twttr.ready) return;
         window.twttr.ready(function(twttr) {
           twttr.events.bind('rendered', function() {
-            // Give the iframe a moment to paint content
             setTimeout(function() {
               var iframe = document.querySelector('#x-embed-container iframe');
               if (iframe && iframe.offsetHeight > 200) {
@@ -289,7 +288,6 @@
     });
 
     /* ── News feeds ────────────────────────────────────────────────────────── */
-
     var QUERY_A =
       '("FPV drone" OR "FPV attack" OR "FPV strike" OR "FPV drones" OR ' +
       '"small drone" OR "small drones" OR "quadcopter" OR "commercial drone" OR ' +
@@ -306,27 +304,22 @@
     var FEED_URL_A = 'https://news.google.com/rss/search?q=' + encodeURIComponent(QUERY_A);
     var FEED_URL_B = 'https://news.google.com/rss/search?q=' + encodeURIComponent(QUERY_B);
 
-    /* Feeds split into priority tiers:
-       Tier 1 (loaded immediately) — highest-signal sources
-       Tier 2 (loaded after ~1s delay) — secondary sources
-       This staggers network requests so the page feels fast.
-    */
     var FEEDS_TIER1 = [
-      { url: FEED_URL_A,                                                                              pub: '',               requireFilter: false },
-      { url: FEED_URL_B,                                                                              pub: '',               requireFilter: false },
-      { url: 'https://twz.com/feed',                                                                 pub: 'The War Zone',   requireFilter: true  },
-      { url: 'https://www.suasnews.com/feed',                                                        pub: 'sUAS News',      requireFilter: false },
-      { url: 'https://dronefare.substack.com/feed',                                                  pub: 'Dronefare',      requireFilter: false },
-      { url: 'https://kyivindependent.com/feed/',                                                    pub: 'Kyiv Independent', requireFilter: true }
+      { url: FEED_URL_A,                                                                              pub: '',                 requireFilter: false },
+      { url: FEED_URL_B,                                                                              pub: '',                 requireFilter: false },
+      { url: 'https://twz.com/feed',                                                                 pub: 'The War Zone',     requireFilter: true  },
+      { url: 'https://www.suasnews.com/feed',                                                        pub: 'sUAS News',        requireFilter: false },
+      { url: 'https://dronefare.substack.com/feed',                                                  pub: 'Dronefare',        requireFilter: false },
+      { url: 'https://kyivindependent.com/feed/',                                                    pub: 'Kyiv Independent', requireFilter: true  }
     ];
 
     var FEEDS_TIER2 = [
-      { url: 'https://www.ukrinform.net/rss/block-lastnews',                                         pub: 'Ukrinform',      requireFilter: true  },
-      { url: 'https://united24media.com/feed',                                                       pub: 'United24 Media', requireFilter: true  },
-      { url: 'https://feeds.reuters.com/reuters/worldNews',                                          pub: 'Reuters',        requireFilter: true  },
-      { url: 'https://www.defensenews.com/arc/outboundfeeds/rss/category/unmanned/?outputType=xml', pub: 'Defense News',   requireFilter: false },
-      { url: 'https://dronexl.co/feed',                                                              pub: 'DroneXL',        requireFilter: true  },
-      { url: 'https://www.covertshores.com/feeds/posts/default',                                     pub: 'Covert Shores',  requireFilter: true  }
+      { url: 'https://www.ukrinform.net/rss/block-lastnews',                                         pub: 'Ukrinform',        requireFilter: true  },
+      { url: 'https://united24media.com/feed',                                                       pub: 'United24 Media',   requireFilter: true  },
+      { url: 'https://feeds.reuters.com/reuters/worldNews',                                          pub: 'Reuters',          requireFilter: true  },
+      { url: 'https://www.defensenews.com/arc/outboundfeeds/rss/category/unmanned/?outputType=xml', pub: 'Defense News',     requireFilter: false },
+      { url: 'https://dronexl.co/feed',                                                              pub: 'DroneXL',          requireFilter: true  },
+      { url: 'https://www.covertshores.com/feeds/posts/default',                                     pub: 'Covert Shores',    requireFilter: true  }
     ];
 
     var TITLE_REQUIRE_TERMS = [
@@ -370,8 +363,8 @@
       } catch (e) { return null; }
     }
 
-    function showStatus(msg, isError) {
-      var el = document.getElementById('news-status');
+    function showStatus(msg, isError, elId) {
+      var el = document.getElementById(elId || 'news-status');
       if (!el) return;
       el.textContent = msg || '';
       el.className = isError ? 'status error' : 'status';
@@ -420,19 +413,19 @@
       return out;
     }
 
-    var CACHE_KEY = 'news_cache_v13_20260303';
-    var CACHE_TIME_KEY = CACHE_KEY + '_time';
-    var CACHE_TTL_MS = 2 * 60 * 60 * 1000;
-    var allItems = []; // accumulates items from both tiers
+    /* ── Cache ── */
+    var NEWS_CACHE_KEY  = 'news_cache_v13_20260303';
+    var ACAD_CACHE_KEY  = 'acad_cache_v1_20260303';
+    var CACHE_TTL_MS    = 2 * 60 * 60 * 1000;
 
-    function saveCache(items) {
-      try { localStorage.setItem(CACHE_KEY, JSON.stringify(items || [])); localStorage.setItem(CACHE_TIME_KEY, String(Date.now())); } catch (e) {}
+    function saveCache(key, items) {
+      try { localStorage.setItem(key, JSON.stringify(items || [])); localStorage.setItem(key + '_time', String(Date.now())); } catch (e) {}
     }
 
-    function loadCache() {
+    function loadCache(key) {
       try {
-        var raw = localStorage.getItem(CACHE_KEY);
-        var when = parseInt(localStorage.getItem(CACHE_TIME_KEY) || '0', 10);
+        var raw = localStorage.getItem(key);
+        var when = parseInt(localStorage.getItem(key + '_time') || '0', 10);
         return { items: raw ? JSON.parse(raw) : [], when: when, fresh: when && (Date.now() - when < CACHE_TTL_MS) };
       } catch (e) { return { items: [], when: 0, fresh: false }; }
     }
@@ -441,19 +434,14 @@
       return (items || []).slice().sort(function(a, b) { return new Date(b.pubDateISO || 0) - new Date(a.pubDateISO || 0); });
     }
 
-    function renderItems(items) {
+    /* ── Render news cards ── */
+    function renderNews(items) {
       var list = document.getElementById('feed2');
       list.innerHTML = '';
       var filtered = (items || []).filter(function(it) { return !isTitleBlocked(it.title); });
       var ordered = sortDesc(dedupeItems(filtered));
       var n = Math.min(ordered.length, 20);
-      if (!n) {
-        var empty = document.createElement('li');
-        empty.className = 'card';
-        empty.textContent = 'No items available right now.';
-        list.appendChild(empty);
-        return;
-      }
+      if (!n) { list.innerHTML = '<li class="card">No items available right now.</li>'; return; }
       for (var i = 0; i < n; i++) {
         var it = ordered[i];
         var li = document.createElement('li');
@@ -470,6 +458,30 @@
       }
     }
 
+    /* ── Render academia cards ── */
+    function renderAcademia(items) {
+      var list = document.getElementById('feed3');
+      list.innerHTML = '';
+      var ordered = sortDesc(dedupeItems(items || []));
+      var n = Math.min(ordered.length, 20);
+      if (!n) { list.innerHTML = '<li class="card academia-card">No papers found.</li>'; return; }
+      for (var i = 0; i < n; i++) {
+        var it = ordered[i];
+        var li = document.createElement('li');
+        li.className = 'card academia-card';
+        var dateText = it.pubDateISO ? formatDate(it.pubDateISO) : null;
+        var html = '<a class="title" href="' + (it.link || '#') + '" target="_blank" rel="noopener noreferrer">' + (it.title || 'Untitled') + '</a>';
+        html += '<div class="meta">';
+        if (it.publication) html += '<div class="source">' + it.publication + '</div>';
+        if (it.author)      html += '<div class="author">' + it.author + '</div>';
+        if (dateText)       html += '<div class="date">' + dateText + '</div>';
+        html += '</div>';
+        li.innerHTML = html;
+        list.appendChild(li);
+      }
+    }
+
+    /* ── Proxy fetch ── */
     function buildProxyUrls(feedUrl) {
       var sep = feedUrl.indexOf('?') === -1 ? '?' : '&';
       var aug = feedUrl + sep + '_=' + Date.now();
@@ -541,43 +553,150 @@
       var feedUrl = f.url;
       var opts = { pub: f.pub, requireFilter: f.requireFilter };
       var augUrl = feedUrl.indexOf('news.google.com') !== -1 ? feedUrl + '&hl=en&gl=US&ceid=US:en' : feedUrl;
-      try {
-        return itemsFromXml(await tryFetchXML(augUrl), 50, opts);
-      } catch (e) {
+      try { return itemsFromXml(await tryFetchXML(augUrl), 50, opts); }
+      catch (e) {
         try { return itemsFromRss2Json(await fetchRss2Json(augUrl, 50), 50, opts); }
         catch (e2) { return []; }
       }
     }
 
+    /* ── News load (tiered) ── */
+    var allNewsItems = [];
+
     async function loadNews() {
-      // Show cache instantly if available
-      var cache = loadCache();
-      if (cache.items && cache.items.length) {
-        allItems = cache.items;
-        renderItems(allItems);
-        showStatus('', false);
-      } else {
-        document.getElementById('feed2').innerHTML = '<li class="card" style="opacity:.6">Loading…</li>';
-      }
+      var cache = loadCache(NEWS_CACHE_KEY);
+      if (cache.items && cache.items.length) { allNewsItems = cache.items; renderNews(allNewsItems); }
+      else { document.getElementById('feed2').innerHTML = '<li class="card" style="opacity:.6">Loading…</li>'; }
 
-      // Tier 1: load high-priority feeds immediately
-      var t1results = await Promise.allSettled(FEEDS_TIER1.map(fetchOneFeed));
-      t1results.forEach(function(r) { if (r.status === 'fulfilled') allItems = allItems.concat(r.value); });
-      saveCache(allItems);
-      renderItems(allItems);
-      showStatus('', false);
+      var t1 = await Promise.allSettled(FEEDS_TIER1.map(fetchOneFeed));
+      t1.forEach(function(r) { if (r.status === 'fulfilled') allNewsItems = allNewsItems.concat(r.value); });
+      saveCache(NEWS_CACHE_KEY, allNewsItems);
+      renderNews(allNewsItems);
+      showStatus('', false, 'news-status');
 
-      // Tier 2: load remaining feeds after a short delay to avoid hammering proxies
       setTimeout(async function() {
-        var t2results = await Promise.allSettled(FEEDS_TIER2.map(fetchOneFeed));
-        t2results.forEach(function(r) { if (r.status === 'fulfilled') allItems = allItems.concat(r.value); });
-        saveCache(allItems);
-        renderItems(allItems);
+        var t2 = await Promise.allSettled(FEEDS_TIER2.map(fetchOneFeed));
+        t2.forEach(function(r) { if (r.status === 'fulfilled') allNewsItems = allNewsItems.concat(r.value); });
+        saveCache(NEWS_CACHE_KEY, allNewsItems);
+        renderNews(allNewsItems);
       }, 1500);
     }
 
+    /* ── Google Scholar RSS via allorigins proxy ──────────────────────────────
+       Google Scholar exposes RSS for search queries at:
+       https://scholar.google.com/scholar?q=QUERY&as_rss=1&hl=en
+
+       Three complementary queries covering:
+         Q1 — FPV & small drone battlefield use (tactics, Ukraine, combat)
+         Q2 — sUAS military capability & technology
+         Q3 — counter-UAS / anti-drone / drone warfare doctrine
+    */
+    var SCHOLAR_QUERIES = [
+      {
+        q: '"FPV drone" OR "FPV drones" OR "small UAS" OR "commercial drone" military combat warfare',
+        pub: 'Google Scholar'
+      },
+      {
+        q: 'sUAS quadcopter "unmanned aerial vehicle" military capability warfare battlefield',
+        pub: 'Google Scholar'
+      },
+      {
+        q: '"counter-UAS" OR "counter-drone" OR "anti-drone" "small unmanned" military defense',
+        pub: 'Google Scholar'
+      }
+    ];
+
+    function scholarFeedUrl(query) {
+      return 'https://scholar.google.com/scholar?q=' + encodeURIComponent(query) + '&as_rss=1&hl=en&as_sdt=0%2C5';
+    }
+
+    async function fetchScholarFeed(queryObj) {
+      var rawUrl = scholarFeedUrl(queryObj.q);
+      // Scholar blocks direct fetch; route through allorigins
+      var proxyUrl = 'https://api.allorigins.win/raw?url=' + encodeURIComponent(rawUrl + '&_=' + Date.now());
+      try {
+        var res = await fetch(proxyUrl);
+        if (!res.ok) throw new Error('allorigins ' + res.status);
+        var text = await res.text();
+        var xml = new DOMParser().parseFromString(text, 'text/xml');
+        if (xml.getElementsByTagName('parsererror').length) throw new Error('parse error');
+
+        var out = [];
+        var items = xml.getElementsByTagName('entry'); // Atom feed
+        // Also try RSS <item> in case format varies
+        if (!items.length) items = xml.getElementsByTagName('item');
+        var n = Math.min(items.length, 20);
+
+        for (var i = 0; i < n; i++) {
+          var it = items[i];
+          // Atom uses <title> and <link href="..."> and <author><name>
+          var title = textOf(it, 'title') || 'Untitled';
+          var split = splitTitle(title);
+
+          // Link: atom <link> has href attribute; RSS uses text content
+          var linkEl = it.getElementsByTagName('link')[0];
+          var link = '#';
+          if (linkEl) {
+            link = linkEl.getAttribute('href') || linkEl.textContent || '#';
+          }
+
+          // Author
+          var author = '';
+          var authorEl = it.getElementsByTagName('author')[0];
+          if (authorEl) {
+            var nameEl = authorEl.getElementsByTagName('name')[0];
+            author = nameEl ? (nameEl.textContent || '').trim() : (authorEl.textContent || '').trim();
+          }
+
+          // Publication / journal from <source> or summary snippet
+          var publication = textOf(it, 'source') || queryObj.pub || 'Google Scholar';
+
+          // Date
+          var pubDate = textOf(it, 'published') || textOf(it, 'updated') || textOf(it, 'pubDate') || '';
+
+          out.push({
+            title: split.headline || title,
+            link: link.trim(),
+            publication: publication,
+            author: author,
+            pubDateISO: pubDate
+          });
+        }
+        return out;
+      } catch (e) {
+        console.warn('Scholar feed failed for:', queryObj.q, e);
+        return [];
+      }
+    }
+
+    var allAcadItems = [];
+
+    async function loadAcademia() {
+      var cache = loadCache(ACAD_CACHE_KEY);
+      if (cache.items && cache.items.length) { allAcadItems = cache.items; renderAcademia(allAcadItems); }
+      else { document.getElementById('feed3').innerHTML = '<li class="card academia-card" style="opacity:.6">Loading…</li>'; }
+
+      var results = await Promise.allSettled(SCHOLAR_QUERIES.map(fetchScholarFeed));
+      var combined = [];
+      results.forEach(function(r) { if (r.status === 'fulfilled') combined = combined.concat(r.value); });
+
+      if (combined.length) {
+        allAcadItems = combined;
+        saveCache(ACAD_CACHE_KEY, allAcadItems);
+        renderAcademia(allAcadItems);
+        showStatus('', false, 'academia-status');
+      } else if (!allAcadItems.length) {
+        document.getElementById('feed3').innerHTML =
+          '<li class="card academia-card">Could not load papers. <a href="https://scholar.google.com/scholar?q=FPV+drone+military+warfare" target="_blank" rel="noopener noreferrer">Search Google Scholar ↗</a></li>';
+        showStatus('Scholar feed unavailable — Google may be rate-limiting the proxy.', true, 'academia-status');
+      }
+    }
+
+    /* ── Init ── */
     loadNews();
-    setInterval(function() { allItems = []; loadNews(); }, 300000);
+    loadAcademia();
+    setInterval(function() { allNewsItems = []; loadNews(); }, 300000);
+    setInterval(function() { allAcadItems = []; loadAcademia(); }, 600000); // Scholar refreshes every 10 min
   </script>
 
 </body>

@@ -38,7 +38,6 @@
       display: grid;
       grid-template-columns: 1fr;
       gap: 0.8rem;
-      padding-right: 0.25rem;
       max-height: none;
       overflow: visible;
     }
@@ -120,44 +119,47 @@
 
   <script>
     /*
-      QUERY_A — combat/operational FPV & small drone news
-      QUERY_B — capability/technology development news
+      Strategy: keep Google News queries broad so we get volume,
+      then filter client-side to remove irrelevant results.
 
-      Source whitelist uses Google News `source:` operator to restrict to reputable outlets.
-      Exclusions remove Shahed-class, TB2, and MALE/HALE platforms.
-      Results are merged, title-similarity deduped (Jaccard), then sorted newest-first.
+      QUERY_A — combat/battlefield small drone news
+      QUERY_B — small drone technology & military capability news
+
+      No source: restrictions. Minimal exclusions in the query itself.
+      Client-side filtering removes titles containing large-platform keywords.
     */
 
-    var SOURCE_WHITELIST =
-      '(source:reuters.com OR source:bbc.com OR source:bbc.co.uk OR ' +
-      'source:apnews.com OR source:theguardian.com OR source:politico.com OR ' +
-      'source:defenseone.com OR source:breakingdefense.com OR ' +
-      'source:thedrive.com OR source:militarytimes.com OR ' +
-      'source:janes.com OR source:rferl.org OR source:kyivindependent.com OR ' +
-      'source:ft.com OR source:wsj.com OR source:forbes.com OR ' +
-      'source:wired.com OR source:aviationweek.com OR source:taskandpurpose.com)';
-
-    var EXCLUSIONS =
-      ' -Shahed -"Shahed-136" -"Shahed-131" -TB2 -Bayraktar' +
-      ' -MQ-9 -Reaper -"Wing Loong" -HALE -MALE' +
-      ' -"cruise missile" -"ballistic missile"';
-
+    // --- Broad queries (no source restrictions) ---
     var QUERY_A =
-      '("FPV drone" OR "FPV attack" OR "FPV strike" OR "small drone" OR sUAS OR "commercial drone" OR quadcopter)' +
-      ' AND (military OR combat OR Ukraine OR warfare OR battlefield OR "front line")' +
-      ' AND ' + SOURCE_WHITELIST +
-      EXCLUSIONS +
+      '("FPV drone" OR "FPV attack" OR "FPV strike" OR "drone strike" OR ' +
+      '"small drone" OR "commercial drone" OR sUAS OR quadcopter OR "drone warfare")' +
+      ' AND (military OR combat OR warfare OR Ukraine OR army OR battlefield)' +
       ' when:7d';
 
     var QUERY_B =
-      '("drone swarm" OR "counter-UAS" OR "counter-drone" OR "drone technology" OR "drone capability" OR "small UAS")' +
-      ' AND (military OR defense OR warfare OR army)' +
-      ' AND ' + SOURCE_WHITELIST +
-      EXCLUSIONS +
+      '("drone swarm" OR "counter-drone" OR "counter-UAS" OR "anti-drone" OR ' +
+      '"drone technology" OR "FPV" OR "small UAS" OR "unmanned aerial")' +
+      ' AND (military OR defense OR warfare OR weapon OR army)' +
       ' when:7d';
 
     var FEED_URL_A = 'https://news.google.com/rss/search?q=' + encodeURIComponent(QUERY_A);
     var FEED_URL_B = 'https://news.google.com/rss/search?q=' + encodeURIComponent(QUERY_B);
+
+    // --- Client-side title filter ---
+    // Drop articles whose titles contain any of these (large platforms, unrelated topics)
+    var TITLE_BLOCKLIST = [
+      'shahed', 'tb-2', 'tb2', 'bayraktar', 'mq-9', 'reaper',
+      'wing loong', 'hale drone', 'male drone', 'cruise missile',
+      'ballistic missile', 'predator drone', 'global hawk',
+      'racing drone championship', 'drone light show', 'drone delivery pizza',
+      'amazon drone', 'drone photography', 'drone racing league',
+      'consumer drone review', 'best drones to buy'
+    ];
+
+    function isTitleBlocked(title) {
+      var lower = (title || '').toLowerCase();
+      return TITLE_BLOCKLIST.some(function(term) { return lower.indexOf(term) !== -1; });
+    }
 
     /* ---------------- Helpers ---------------- */
     function formatDate(dateStr) {
@@ -196,17 +198,16 @@
     }
 
     /* ---------------- Title-similarity deduplication ----------------
-       Strips stopwords, builds word-set fingerprints, drops items
-       where Jaccard similarity with any already-seen title exceeds 0.6.
+       Jaccard similarity on meaningful words. Threshold 0.6 = same story.
     */
     var STOPWORDS = {
-      a:1, an:1, the:1, in:1, on:1, at:1, to:1, of:1, and:1, or:1,
-      for:1, is:1, are:1, was:1, were:1, its:1, it:1, as:1, by:1,
-      with:1, from:1, that:1, this:1, be:1, has:1, have:1, after:1,
-      over:1, says:1, say:1, new:1, amid:1, into:1
+      a:1,an:1,the:1,in:1,on:1,at:1,to:1,of:1,and:1,or:1,for:1,
+      is:1,are:1,was:1,were:1,its:1,it:1,as:1,by:1,with:1,from:1,
+      that:1,this:1,be:1,has:1,have:1,after:1,over:1,says:1,say:1,
+      new:1,amid:1,into:1,how:1,why:1,what:1,when:1,who:1
     };
 
-    function titleFingerprint(title) {
+    function fingerprint(title) {
       return (title || '')
         .toLowerCase()
         .replace(/[^a-z0-9\s]/g, '')
@@ -214,42 +215,37 @@
         .filter(function(w) { return w.length > 2 && !STOPWORDS[w]; });
     }
 
-    function jaccardSimilarity(a, b) {
-      var setA = {}, intersection = 0, union = 0;
+    function jaccard(a, b) {
+      var setA = {}, inter = 0, union = 0;
       a.forEach(function(w) { setA[w] = 1; });
-      var allKeys = {};
-      a.forEach(function(w) { allKeys[w] = 1; });
-      b.forEach(function(w) { allKeys[w] = 1; });
-      Object.keys(allKeys).forEach(function(w) {
-        if (setA[w] && b.indexOf(w) !== -1) intersection++;
+      var all = {};
+      a.forEach(function(w) { all[w] = 1; });
+      b.forEach(function(w) { all[w] = 1; });
+      Object.keys(all).forEach(function(w) {
+        if (setA[w] && b.indexOf(w) !== -1) inter++;
         union++;
       });
-      return union === 0 ? 0 : intersection / union;
+      return union === 0 ? 0 : inter / union;
     }
 
     function dedupeItems(items) {
-      var seenLinks = {};
-      var seenFingerprints = [];
-      var out = [];
+      var seenLinks = {}, seenFPs = [], out = [];
       (items || []).forEach(function(it) {
-        var linkKey = (it.link || '').split('?')[0];
-        if (seenLinks[linkKey]) return;
-        seenLinks[linkKey] = true;
-
-        var fp = titleFingerprint(it.title);
-        var isDupe = seenFingerprints.some(function(seen) {
-          return jaccardSimilarity(fp, seen) > 0.6;
-        });
-        if (isDupe) return;
-
-        seenFingerprints.push(fp);
+        // 1. exact link dedup
+        var key = (it.link || '').split('?')[0];
+        if (seenLinks[key]) return;
+        seenLinks[key] = true;
+        // 2. title-similarity dedup
+        var fp = fingerprint(it.title);
+        if (seenFPs.some(function(s) { return jaccard(fp, s) > 0.6; })) return;
+        seenFPs.push(fp);
         out.push(it);
       });
       return out;
     }
 
     /* ---------------- Cache ---------------- */
-    var CACHE_KEY = 'news_cache_v8_20260303';
+    var CACHE_KEY = 'news_cache_v9_20260303';
     var CACHE_TIME_KEY = CACHE_KEY + '_time';
     var CACHE_TTL_MS = 2 * 60 * 60 * 1000;
 
@@ -264,34 +260,31 @@
       try {
         var raw = localStorage.getItem(CACHE_KEY);
         var when = parseInt(localStorage.getItem(CACHE_TIME_KEY) || '0', 10);
-        var items = raw ? JSON.parse(raw) : [];
-        return { items: items, when: when, fresh: when && (Date.now() - when < CACHE_TTL_MS) };
-      } catch (e) {
-        return { items: [], when: 0, fresh: false };
-      }
+        return { items: raw ? JSON.parse(raw) : [], when: when, fresh: when && (Date.now() - when < CACHE_TTL_MS) };
+      } catch (e) { return { items: [], when: 0, fresh: false }; }
     }
 
-    /* ---------------- Sorting ---------------- */
-    function sortByDateDesc(items) {
+    /* ---------------- Sort & render ---------------- */
+    function sortDesc(items) {
       return (items || []).slice().sort(function(a, b) {
-        var ta = a && a.pubDateISO ? new Date(a.pubDateISO).getTime() : 0;
-        var tb = b && b.pubDateISO ? new Date(b.pubDateISO).getTime() : 0;
-        return tb - ta;
+        return new Date(b.pubDateISO || 0) - new Date(a.pubDateISO || 0);
       });
     }
 
-    /* ---------------- Rendering ---------------- */
     function renderItems(items, elementId, maxItems) {
       var list = document.getElementById(elementId);
       list.innerHTML = '';
-      var ordered = sortByDateDesc(dedupeItems(items));
+
+      // Apply client-side title filter, dedupe, then sort
+      var filtered = (items || []).filter(function(it) { return !isTitleBlocked(it.title); });
+      var ordered = sortDesc(dedupeItems(filtered));
       var n = Math.min(ordered.length, maxItems || 20);
 
       if (!n) {
-        var emptyLi = document.createElement('li');
-        emptyLi.className = 'card';
-        emptyLi.textContent = 'No items available right now.';
-        list.appendChild(emptyLi);
+        var empty = document.createElement('li');
+        empty.className = 'card';
+        empty.textContent = 'No items available right now.';
+        list.appendChild(empty);
         return;
       }
 
@@ -303,8 +296,8 @@
         var html = '<a class="title" href="' + (it.link || '#') + '" target="_blank" rel="noopener noreferrer">' + (it.title || 'Untitled') + '</a>';
         html += '<div class="meta">';
         if (it.publication) html += '<div class="source">' + it.publication + '</div>';
-        if (it.author) html += '<div class="author">' + it.author + '</div>';
-        if (dateText) html += '<div class="date">' + dateText + '</div>';
+        if (it.author)      html += '<div class="author">' + it.author + '</div>';
+        if (dateText)       html += '<div class="date">' + dateText + '</div>';
         html += '</div>';
         li.innerHTML = html;
         list.appendChild(li);
@@ -327,8 +320,7 @@
         try {
           var res = await fetch(urls[i]);
           if (!res.ok) continue;
-          var text = await res.text();
-          var xml = new DOMParser().parseFromString(text, 'text/xml');
+          var xml = new DOMParser().parseFromString(await res.text(), 'text/xml');
           if (xml.getElementsByTagName('parsererror').length) continue;
           return xml;
         } catch (e) {}
@@ -341,45 +333,46 @@
                 '&rss_url=' + encodeURIComponent(feedUrl + '&hl=en&gl=US&ceid=US:en&_=' + Date.now());
       var res = await fetch(url);
       if (!res.ok) throw new Error('rss2json HTTP ' + res.status);
-      return await res.json();
+      return res.json();
     }
 
     /* ---------------- Normalise ---------------- */
     function itemsFromXml(xmlDoc, limit) {
-      var out = [];
-      var items = xmlDoc.getElementsByTagName('item');
+      var out = [], items = xmlDoc.getElementsByTagName('item');
       var n = Math.min(items.length, limit || 50);
       for (var i = 0; i < n; i++) {
         var it = items[i];
         var rawTitle = textOf(it, 'title') || 'Untitled';
-        var link = textOf(it, 'link') || '#';
-        var pubDate = textOf(it, 'pubDate') || '';
         var sourceNodes = it.getElementsByTagName('source');
-        var source = (sourceNodes && sourceNodes.length) ? (sourceNodes[0].textContent || '').trim() : '';
+        var source = sourceNodes.length ? (sourceNodes[0].textContent || '').trim() : '';
         var split = splitTitle(rawTitle);
         var author = '';
         var creators = it.getElementsByTagName('dc:creator');
-        if (creators && creators.length) author = (creators[0].textContent || '').trim();
+        if (creators.length) author = (creators[0].textContent || '').trim();
         if (!author) author = textOf(it, 'author');
-        out.push({ title: split.headline || 'Untitled', link: link, publication: source || split.publication || '', author: author, pubDateISO: pubDate });
+        out.push({
+          title: split.headline || 'Untitled',
+          link: textOf(it, 'link') || '#',
+          publication: source || split.publication || '',
+          author: author,
+          pubDateISO: textOf(it, 'pubDate') || ''
+        });
       }
       return out;
     }
 
     function itemsFromRss2Json(json, limit) {
-      var out = [];
-      var arr = (json && json.items) ? json.items : [];
+      var out = [], arr = (json && json.items) || [];
       var n = Math.min(arr.length, limit || 50);
       for (var i = 0; i < n; i++) {
-        var it = arr[i];
-        var rawTitle = it && it.title ? it.title : 'Untitled';
-        var split = splitTitle(rawTitle);
+        var it = arr[i] || {};
+        var split = splitTitle(it.title || '');
         out.push({
           title: split.headline || 'Untitled',
-          link: it && it.link ? it.link : '#',
-          publication: (it && it.author) ? it.author : (split.publication || ''),
-          author: (it && it.author) ? it.author : '',
-          pubDateISO: (it && it.pubDate) ? it.pubDate : ''
+          link: it.link || '#',
+          publication: it.author || split.publication || '',
+          author: it.author || '',
+          pubDateISO: it.pubDate || ''
         });
       }
       return out;
@@ -388,12 +381,10 @@
     /* ---------------- Fetch one feed ---------------- */
     async function fetchOneFeed(feedUrl) {
       try {
-        var xml = await tryFetchXML(feedUrl);
-        return itemsFromXml(xml, 50);
+        return itemsFromXml(await tryFetchXML(feedUrl), 50);
       } catch (e) {
         console.warn('XML failed, falling back to rss2json:', e);
-        var json = await fetchRss2Json(feedUrl, 50);
-        return itemsFromRss2Json(json, 50);
+        return itemsFromRss2Json(await fetchRss2Json(feedUrl, 50), 50);
       }
     }
 
@@ -404,18 +395,10 @@
       list.innerHTML = '<li class="card" style="opacity:.8">Loading…</li>';
 
       try {
-        var results = await Promise.allSettled([
-          fetchOneFeed(FEED_URL_A),
-          fetchOneFeed(FEED_URL_B)
-        ]);
-
+        var results = await Promise.allSettled([fetchOneFeed(FEED_URL_A), fetchOneFeed(FEED_URL_B)]);
         var combined = [];
-        results.forEach(function(r) {
-          if (r.status === 'fulfilled') combined = combined.concat(r.value);
-        });
-
+        results.forEach(function(r) { if (r.status === 'fulfilled') combined = combined.concat(r.value); });
         if (!combined.length) throw new Error('Both feeds returned no items');
-
         saveCache(combined);
         renderItems(combined, 'feed2', 20);
         showStatus('', false);
@@ -424,14 +407,9 @@
         var cache = loadCache();
         if (cache.items && cache.items.length) {
           renderItems(cache.items, 'feed2', 20);
-          var whenStr = cache.when ? new Date(cache.when).toLocaleString() : 'earlier';
-          showStatus('Showing cached news from ' + whenStr + ' (live update failed).', true);
+          showStatus('Showing cached news from ' + (cache.when ? new Date(cache.when).toLocaleString() : 'earlier') + ' (live update failed).', true);
         } else {
-          list.innerHTML = '';
-          var li = document.createElement('li');
-          li.className = 'card';
-          li.textContent = 'Could not load feed. Try again later.';
-          list.appendChild(li);
+          list.innerHTML = '<li class="card">Could not load feed. Try again later.</li>';
           showStatus('Could not load news (network issue or rate limiting). Will retry automatically.', true);
         }
       }

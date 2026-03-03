@@ -15,7 +15,26 @@
 
     body { padding: 2rem; }
 
-    h1 { font-size: 1.6rem; margin-bottom: 2rem; }
+    /* ── Refined Header Style ── */
+    .header-container {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 2.5rem;
+      border-bottom: 2px solid #333;
+      padding-bottom: 12px;
+    }
+    .header-container h1 { 
+      margin: 0; 
+      font-size: 1.6rem; 
+      letter-spacing: 2px; 
+      font-weight: bold; 
+      color: #fff; 
+      text-transform: uppercase;
+      text-shadow: 0 0 8px rgba(77, 163, 255, 0.2);
+    }
+    .header-info { text-align: right; font-size: 0.72rem; color: #888; display: flex; flex-direction: column; gap: 4px; }
+    .status-indicator { color: #44ff44; font-weight: bold; }
 
     h2 {
       font-size: 1.1rem;
@@ -24,6 +43,28 @@
       padding-bottom: 0.5rem;
       text-transform: lowercase;
     }
+
+    /* ── Column Header for Refresh Button ── */
+    .col-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: baseline;
+      border-bottom: 1px solid #444;
+      margin-bottom: 1rem;
+    }
+    .col-header h2 { border: none; margin: 0; padding: 0; }
+    .refresh-btn {
+      background: none;
+      border: none;
+      color: #4da3ff;
+      cursor: pointer;
+      font-family: Courier;
+      font-size: 0.75rem;
+      padding: 0;
+      opacity: 0.7;
+      transition: opacity 0.2s;
+    }
+    .refresh-btn:hover { opacity: 1; text-decoration: underline; }
 
     .columns { display: flex; justify-content: space-between; gap: 2rem; align-items: flex-start; }
     .column { flex: 1; min-width: 0; }
@@ -34,7 +75,6 @@
     a { text-decoration: none; color: #4da3ff; }
     a:hover { text-decoration: underline; }
 
-    /* ── Shared scroll wrap — fade starts at 97% so barely perceptible ── */
     .scroll-wrap {
       max-height: 520px;
       overflow-y: auto;
@@ -122,7 +162,6 @@
 
     .card a.title:hover { text-decoration: underline; }
 
-    /* Academia cards — blue tint */
     .academia-card {
       background: #2e3d52;
       border: 1px solid #263547;
@@ -168,12 +207,21 @@
 
   <noscript style="color:#ffbcbc;">This page requires JavaScript to load feeds.</noscript>
 
-  <h1>sUAS database</h1>
+  <div class="header-container">
+    <h1>sUAS Database</h1>
+    <div class="header-info">
+      <span class="status-indicator">● SYSTEM_ONLINE</span>
+      <span id="sync-time">SYNC: --:--</span>
+    </div>
+  </div>
 
   <div class="columns">
 
     <div class="column">
-      <h2>X</h2>
+      <div class="col-header">
+        <h2>X</h2>
+        <button onclick="location.reload()" class="refresh-btn">[refresh system]</button>
+      </div>
       <div id="x-embed-container">
         <a class="twitter-timeline"
            href="https://twitter.com/OW7168414619053/lists/drones"
@@ -210,7 +258,7 @@
   </div>
 
   <script>
-    /* ── Account cards ── */
+    /* ── Account cards (Dronefare & KyivIndependent Removed) ── */
     var ACCOUNTS = [
       { handle: 'UAWeapons',       desc: 'Ukrainian weapons & drone footage tracker',                                          tag: 'OSINT · battlefield' },
       { handle: 'DefMon3',         desc: 'Detailed OSINT, frequent FPV footage & analysis',                                    tag: 'OSINT · battlefield' },
@@ -227,9 +275,7 @@
       { handle: 'CalibreObscura',  desc: 'Weapons & equipment analyst, FPV coverage',                                         tag: 'analysis · FPV' },
       { handle: 'MENASTREAM',      desc: 'Premier Sahel OSINT — drone use by state & non-state actors in Mali/Niger/Burkina', tag: 'Sahel · OSINT' },
       { handle: 'TheWarZone',      desc: 'The War Zone — breaking defense & UAS news',                                        tag: 'publication' },
-      { handle: 'sUASnews',        desc: 'sUAS News — dedicated small UAS industry coverage',                                 tag: 'publication' },
-      { handle: 'KyivIndependent', desc: 'Kyiv Independent — frontline Ukraine reporting',                                    tag: 'publication' },
-      { handle: 'Dronefare',       desc: 'Drone warfare analysis & commentary',                                               tag: 'publication' }
+      { handle: 'sUASnews',        desc: 'sUAS News — dedicated small UAS industry coverage',                                 tag: 'publication' }
     ];
 
     (function buildAccountCards() {
@@ -276,12 +322,19 @@
       } catch (e) { return null; }
     }
 
+    function updateSyncTime() {
+      var now = new Date();
+      var time = now.getHours().toString().padStart(2, '0') + ':' + now.getMinutes().toString().padStart(2, '0');
+      document.getElementById('sync-time').textContent = 'SYNC: ' + time;
+    }
+
     function showStatus(msg, isError, elId) {
       var el = document.getElementById(elId);
       if (!el) return;
       el.textContent = msg || '';
       el.className = isError ? 'status error' : 'status';
       el.style.display = msg ? 'block' : 'none';
+      updateSyncTime();
     }
 
     function splitTitle(title) {
@@ -519,9 +572,7 @@
       }, 1500);
     }
 
-    /* ── Academia: arXiv API ────────────────────────────────────────────────
-       arXiv export API supports CORS and needs no key or proxy.
-    */
+    /* ── Refined Academia: arXiv API ────────────────────────────────────── */
     var ARXIV_QUERIES = [
       { q: 'all:"FPV drone" OR all:"FPV strike" OR all:"FPV attack" AND (all:military OR all:warfare)' },
       { q: 'all:"small drones" OR all:"quadcopter" AND (all:combat OR all:battlefield OR all:tactical)' },
@@ -565,7 +616,6 @@
           return out;
         } catch(e) {}
       }
-      console.warn('arXiv: all URLs failed for:', queryObj.q);
       return [];
     }
 
@@ -619,6 +669,7 @@
     }
 
     /* ── Init ── */
+    updateSyncTime();
     loadNews();
     loadAcademia();
     setInterval(function(){ allNewsItems=[]; loadNews(); }, 300000);

@@ -34,12 +34,27 @@
     a { text-decoration: none; color: #4da3ff; }
     a:hover { text-decoration: underline; }
 
+    /* --- Scrollable news list: ~3 cards visible --- */
+    .news-scroll-wrap {
+      max-height: 520px;   /* roughly 3 cards tall */
+      overflow-y: auto;
+      padding-right: 6px;  /* space so scrollbar doesn't overlap cards */
+
+      /* subtle fade at the bottom to hint there's more */
+      -webkit-mask-image: linear-gradient(to bottom, black 80%, transparent 100%);
+      mask-image: linear-gradient(to bottom, black 80%, transparent 100%);
+    }
+
+    /* Scrollbar styling */
+    .news-scroll-wrap::-webkit-scrollbar { width: 5px; }
+    .news-scroll-wrap::-webkit-scrollbar-track { background: transparent; }
+    .news-scroll-wrap::-webkit-scrollbar-thumb { background: #5a4370; border-radius: 4px; }
+    .news-scroll-wrap::-webkit-scrollbar-thumb:hover { background: #7a5a96; }
+
     .news-list {
       display: grid;
       grid-template-columns: 1fr;
       gap: 0.8rem;
-      max-height: none;
-      overflow: visible;
     }
 
     .card {
@@ -108,7 +123,10 @@
     <div class="column">
       <h2>news</h2>
       <div id="news-status" class="status" style="display:none;"></div>
-      <ul id="feed2" class="news-list"></ul>
+      <!-- scroll wrapper constrains height; news-list sits inside it -->
+      <div class="news-scroll-wrap">
+        <ul id="feed2" class="news-list"></ul>
+      </div>
     </div>
 
     <div class="column">
@@ -118,18 +136,6 @@
   </div>
 
   <script>
-    /*
-      Strategy: keep Google News queries broad so we get volume,
-      then filter client-side to remove irrelevant results.
-
-      QUERY_A — combat/battlefield small drone news
-      QUERY_B — small drone technology & military capability news
-
-      No source: restrictions. Minimal exclusions in the query itself.
-      Client-side filtering removes titles containing large-platform keywords.
-    */
-
-    // --- Broad queries (no source restrictions) ---
     var QUERY_A =
       '("FPV drone" OR "FPV attack" OR "FPV strike" OR "drone strike" OR ' +
       '"small drone" OR "commercial drone" OR sUAS OR quadcopter OR "drone warfare")' +
@@ -145,8 +151,6 @@
     var FEED_URL_A = 'https://news.google.com/rss/search?q=' + encodeURIComponent(QUERY_A);
     var FEED_URL_B = 'https://news.google.com/rss/search?q=' + encodeURIComponent(QUERY_B);
 
-    // --- Client-side title filter ---
-    // Drop articles whose titles contain any of these (large platforms, unrelated topics)
     var TITLE_BLOCKLIST = [
       'shahed', 'tb-2', 'tb2', 'bayraktar', 'mq-9', 'reaper',
       'wing loong', 'hale drone', 'male drone', 'cruise missile',
@@ -180,26 +184,19 @@
 
     function splitTitle(title) {
       if (!title) return { headline: '', publication: '' };
-      var hyphenIdx = title.indexOf(' - ');
-      if (hyphenIdx !== -1) {
-        return { headline: title.slice(0, hyphenIdx).trim(), publication: title.slice(hyphenIdx + 3).trim() };
-      }
-      var emDashIdx = title.indexOf(' — ');
-      if (emDashIdx !== -1) {
-        return { headline: title.slice(0, emDashIdx).trim(), publication: title.slice(emDashIdx + 3).trim() };
-      }
+      var h = title.indexOf(' - ');
+      if (h !== -1) return { headline: title.slice(0, h).trim(), publication: title.slice(h + 3).trim() };
+      var e = title.indexOf(' — ');
+      if (e !== -1) return { headline: title.slice(0, e).trim(), publication: title.slice(e + 3).trim() };
       return { headline: title.trim(), publication: '' };
     }
 
     function textOf(node, tag) {
       var els = node.getElementsByTagName(tag);
-      if (els && els.length) return (els[0].textContent || '').trim();
-      return '';
+      return (els && els.length) ? (els[0].textContent || '').trim() : '';
     }
 
-    /* ---------------- Title-similarity deduplication ----------------
-       Jaccard similarity on meaningful words. Threshold 0.6 = same story.
-    */
+    /* ---------------- Deduplication ---------------- */
     var STOPWORDS = {
       a:1,an:1,the:1,in:1,on:1,at:1,to:1,of:1,and:1,or:1,for:1,
       is:1,are:1,was:1,were:1,its:1,it:1,as:1,by:1,with:1,from:1,
@@ -208,34 +205,24 @@
     };
 
     function fingerprint(title) {
-      return (title || '')
-        .toLowerCase()
-        .replace(/[^a-z0-9\s]/g, '')
-        .split(/\s+/)
+      return (title || '').toLowerCase().replace(/[^a-z0-9\s]/g, '').split(/\s+/)
         .filter(function(w) { return w.length > 2 && !STOPWORDS[w]; });
     }
 
     function jaccard(a, b) {
-      var setA = {}, inter = 0, union = 0;
-      a.forEach(function(w) { setA[w] = 1; });
-      var all = {};
-      a.forEach(function(w) { all[w] = 1; });
+      var setA = {}, all = {}, inter = 0, union = 0;
+      a.forEach(function(w) { setA[w] = 1; all[w] = 1; });
       b.forEach(function(w) { all[w] = 1; });
-      Object.keys(all).forEach(function(w) {
-        if (setA[w] && b.indexOf(w) !== -1) inter++;
-        union++;
-      });
+      Object.keys(all).forEach(function(w) { if (setA[w] && b.indexOf(w) !== -1) inter++; union++; });
       return union === 0 ? 0 : inter / union;
     }
 
     function dedupeItems(items) {
       var seenLinks = {}, seenFPs = [], out = [];
       (items || []).forEach(function(it) {
-        // 1. exact link dedup
         var key = (it.link || '').split('?')[0];
         if (seenLinks[key]) return;
         seenLinks[key] = true;
-        // 2. title-similarity dedup
         var fp = fingerprint(it.title);
         if (seenFPs.some(function(s) { return jaccard(fp, s) > 0.6; })) return;
         seenFPs.push(fp);
@@ -250,10 +237,7 @@
     var CACHE_TTL_MS = 2 * 60 * 60 * 1000;
 
     function saveCache(items) {
-      try {
-        localStorage.setItem(CACHE_KEY, JSON.stringify(items || []));
-        localStorage.setItem(CACHE_TIME_KEY, String(Date.now()));
-      } catch (e) {}
+      try { localStorage.setItem(CACHE_KEY, JSON.stringify(items || [])); localStorage.setItem(CACHE_TIME_KEY, String(Date.now())); } catch (e) {}
     }
 
     function loadCache() {
@@ -274,8 +258,6 @@
     function renderItems(items, elementId, maxItems) {
       var list = document.getElementById(elementId);
       list.innerHTML = '';
-
-      // Apply client-side title filter, dedupe, then sort
       var filtered = (items || []).filter(function(it) { return !isTitleBlocked(it.title); });
       var ordered = sortDesc(dedupeItems(filtered));
       var n = Math.min(ordered.length, maxItems || 20);
@@ -336,7 +318,6 @@
       return res.json();
     }
 
-    /* ---------------- Normalise ---------------- */
     function itemsFromXml(xmlDoc, limit) {
       var out = [], items = xmlDoc.getElementsByTagName('item');
       var n = Math.min(items.length, limit || 50);
@@ -350,13 +331,7 @@
         var creators = it.getElementsByTagName('dc:creator');
         if (creators.length) author = (creators[0].textContent || '').trim();
         if (!author) author = textOf(it, 'author');
-        out.push({
-          title: split.headline || 'Untitled',
-          link: textOf(it, 'link') || '#',
-          publication: source || split.publication || '',
-          author: author,
-          pubDateISO: textOf(it, 'pubDate') || ''
-        });
+        out.push({ title: split.headline || 'Untitled', link: textOf(it, 'link') || '#', publication: source || split.publication || '', author: author, pubDateISO: textOf(it, 'pubDate') || '' });
       }
       return out;
     }
@@ -367,28 +342,19 @@
       for (var i = 0; i < n; i++) {
         var it = arr[i] || {};
         var split = splitTitle(it.title || '');
-        out.push({
-          title: split.headline || 'Untitled',
-          link: it.link || '#',
-          publication: it.author || split.publication || '',
-          author: it.author || '',
-          pubDateISO: it.pubDate || ''
-        });
+        out.push({ title: split.headline || 'Untitled', link: it.link || '#', publication: it.author || split.publication || '', author: it.author || '', pubDateISO: it.pubDate || '' });
       }
       return out;
     }
 
-    /* ---------------- Fetch one feed ---------------- */
     async function fetchOneFeed(feedUrl) {
-      try {
-        return itemsFromXml(await tryFetchXML(feedUrl), 50);
-      } catch (e) {
+      try { return itemsFromXml(await tryFetchXML(feedUrl), 50); }
+      catch (e) {
         console.warn('XML failed, falling back to rss2json:', e);
         return itemsFromRss2Json(await fetchRss2Json(feedUrl, 50), 50);
       }
     }
 
-    /* ---------------- Controller ---------------- */
     async function loadNews() {
       var list = document.getElementById('feed2');
       showStatus('Loading news…', false);

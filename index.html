@@ -69,14 +69,6 @@
       padding-right: 0.25rem; /* tiny room for scrollbar */
     }
 
-    /* Optional: on very wide screens we can keep single column for readability.
-       If you want two columns, change to 'repeat(2, minmax(0,1fr))'. */
-    @media (min-width: 1200px) {
-      .news-list {
-        grid-template-columns: 1fr;
-      }
-    }
-
     .card {
       background: #242424;
       border: 1px solid #2f2f2f;
@@ -123,112 +115,6 @@
       line-height: 1.4;
     }
 
-    /* Responsive: stack columns on narrow screens */
-    @media (max-width: 900px) {
-      .columns {
-        flex-direction: column;
-      }
-    }
-  </style>
-</head>
-<body>
-
-  <h1>sUAS database</h1>
-
-  <div class="columns">
-    <div class="column">
-      <h2>social</h2>
-      <ul id="feed1"></ul>
-    </div>
-
-    <div class="column">
-      <h2>news</h2>
-      <!-- Marked as a card list -->
-      <ul id="feed2" class="news-list"></ul>
-    </div>
-
-    <div class="column">
-      <h2>academia</h2>
-      <ul id="feed3"></ul>
-    </div>
-  </div>
-
-  <script>
-    function safeText(htmlString = "") {
-      const div = document.createElement('div');
-      div.innerHTML = htmlString;
-      // Strip tags and trim; keeps plain text for descriptions
-      return (div.textContent || div.innerText || "").trim();
-    }
-
-    function formatDate(dateStr) {
-      try {
-        const d = new Date(dateStr);
-        if (isNaN(d)) return null;
-        // e.g., "3 Mar 2026"
-        return d.toLocaleDateString(undefined, { day: 'numeric', month: 'short', year: 'numeric' });
-      } catch {
-        return null;
-      }
-    }
-
-    async function loadRSS(feedUrl, elementId) {
-      const proxy = "https://api.rss2json.com/v1/api.json?rss_url=";
-      const encodedUrl = encodeURIComponent(feedUrl);
-      const list = document.getElementById(elementId);
-
-      // Optional: loading state
-      list.innerHTML = '<li class="card" aria-busy="true" style="opacity:.8">Loading…</li>';
-
-      try {
-        const res = await fetch(proxy + encodedUrl);
-        if (!res.ok) throw new Error(`HTTP ${res.status}`);
-        const data = await res.json();
-
-        list.innerHTML = ""; // clear
-
-        // If this is the news column (feed2), render as cards
-        const isNews = (elementId === "feed2");
-
-        (data.items || []).forEach(item => {
-          const li = document.createElement('li');
-          if (isNews) {
-            li.className = 'card';
-
-            const title = item.title || 'Untitled';
-            const link = item.link || '#';
-            const source = item.author || (item.feedTitle || data.feed?.title) || 'Source';
-            const dateText = formatDate(item.pubDate);
-            const description = safeText(item.description).replace(/\s+/g, ' ').slice(0, 180);
-            const hasExcerpt = description.length > 40; // avoid very short blurbs
-
-            li.innerHTML = `
-              <a class="title" href="${link}" target="_blank" rel="noopener noreferrer">${title}</a>
-              <div class="meta">
-                <span>${source}</span>
-                ${dateText ? '<span class="dot">•</span><span>' + dateText + '</span>' : ''}
-              </div>
-              ${hasExcerpt ? '<div class="excerpt">' + description + '…</div>' : ''}
-            `;
-          } else {
-            // default rendering for other feeds
-            li.innerHTML = `<a href="${item.link}" target="_blank" rel="noopener noreferrer">${item.title}</a>`;
-          }
-          list.appendChild(li);
-        });
-
-        // Empty-state
-        if (!list.children.length) {
-          const li = document.createElement('li');
-          li.className = isNews ? 'card' : '';
-          li.textContent = 'No items available right now.';
-          list.appendChild(li);
-        }
-      } catch (err) {
-        console.error('RSS load error:', err);
-        list.innerHTML = "";
-        const li = document.createElement('li');
-        li.className = (elementId === "feed2") ? 'card' : '';
-        li.textContent = 'Could not load feed. Try again later.';
-        list.appendChild(li);
-      }
+    /* Simple inline status message style */
+    .status {
+      color: #cfcfcf;

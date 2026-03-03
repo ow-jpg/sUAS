@@ -3,6 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <title>sUAS database</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
   <style>
     html, body {
       margin: 0;
@@ -37,6 +38,7 @@
 
     .column {
       flex: 1;
+      min-width: 0; /* prevents overflow with grid children */
     }
 
     ul {
@@ -58,6 +60,75 @@
     a:hover {
       text-decoration: underline;
     }
+
+    /* --- Card styles for news feed --- */
+    .news-list {
+      display: grid;
+      grid-template-columns: 1fr;
+      gap: 0.8rem; /* space between cards */
+      padding-right: 0.25rem; /* tiny room for scrollbar */
+    }
+
+    /* Optional: on very wide screens we can keep single column for readability.
+       If you want two columns, change to 'repeat(2, minmax(0,1fr))'. */
+    @media (min-width: 1200px) {
+      .news-list {
+        grid-template-columns: 1fr;
+      }
+    }
+
+    .card {
+      background: #242424;
+      border: 1px solid #2f2f2f;
+      border-radius: 10px;
+      padding: 0.9rem 1rem;
+      transition: transform 0.12s ease, box-shadow 0.12s ease, border-color 0.2s ease;
+    }
+
+    .card:hover {
+      transform: translateY(-1px);
+      box-shadow: 0 6px 14px rgba(0, 0, 0, 0.25);
+      border-color: #3a3a3a;
+    }
+
+    .card a.title {
+      display: inline-block;
+      color: #e6f0ff;            /* softer than pure blue on dark */
+      font-weight: 600;
+      text-decoration: none;
+      line-height: 1.35;
+    }
+
+    .card a.title:hover {
+      text-decoration: underline;
+    }
+
+    .card .meta {
+      margin-top: 0.45rem;
+      color: #bdbdbd;
+      font-size: 0.86rem;
+      display: flex;
+      gap: 0.6rem;
+      flex-wrap: wrap;
+    }
+
+    .card .dot {
+      opacity: 0.55;
+    }
+
+    .card .excerpt {
+      margin-top: 0.5rem;
+      color: #d7d7d7;
+      font-size: 0.92rem;
+      line-height: 1.4;
+    }
+
+    /* Responsive: stack columns on narrow screens */
+    @media (max-width: 900px) {
+      .columns {
+        flex-direction: column;
+      }
+    }
   </style>
 </head>
 <body>
@@ -72,7 +143,8 @@
 
     <div class="column">
       <h2>news</h2>
-      <ul id="feed2"></ul>
+      <!-- Marked as a card list -->
+      <ul id="feed2" class="news-list"></ul>
     </div>
 
     <div class="column">
@@ -82,34 +154,81 @@
   </div>
 
   <script>
+    function safeText(htmlString = "") {
+      const div = document.createElement('div');
+      div.innerHTML = htmlString;
+      // Strip tags and trim; keeps plain text for descriptions
+      return (div.textContent || div.innerText || "").trim();
+    }
+
+    function formatDate(dateStr) {
+      try {
+        const d = new Date(dateStr);
+        if (isNaN(d)) return null;
+        // e.g., "3 Mar 2026"
+        return d.toLocaleDateString(undefined, { day: 'numeric', month: 'short', year: 'numeric' });
+      } catch {
+        return null;
+      }
+    }
+
     async function loadRSS(feedUrl, elementId) {
       const proxy = "https://api.rss2json.com/v1/api.json?rss_url=";
       const encodedUrl = encodeURIComponent(feedUrl);
-      const res = await fetch(proxy + encodedUrl);
-      const data = await res.json();
       const list = document.getElementById(elementId);
 
-      list.innerHTML = ""; // clear existing items before refresh
+      // Optional: loading state
+      list.innerHTML = '<li class="card" aria-busy="true" style="opacity:.8">Loading…</li>';
 
-      data.items.forEach(item => {
+      try {
+        const res = await fetch(proxy + encodedUrl);
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        const data = await res.json();
+
+        list.innerHTML = ""; // clear
+
+        // If this is the news column (feed2), render as cards
+        const isNews = (elementId === "feed2");
+
+        (data.items || []).forEach(item => {
+          const li = document.createElement('li');
+          if (isNews) {
+            li.className = 'card';
+
+            const title = item.title || 'Untitled';
+            const link = item.link || '#';
+            const source = item.author || (item.feedTitle || data.feed?.title) || 'Source';
+            const dateText = formatDate(item.pubDate);
+            const description = safeText(item.description).replace(/\s+/g, ' ').slice(0, 180);
+            const hasExcerpt = description.length > 40; // avoid very short blurbs
+
+            li.innerHTML = `
+              <a class="title" href="${link}" target="_blank" rel="noopener noreferrer">${title}</a>
+              <div class="meta">
+                <span>${source}</span>
+                ${dateText ? '<span class="dot">•</span><span>' + dateText + '</span>' : ''}
+              </div>
+              ${hasExcerpt ? '<div class="excerpt">' + description + '…</div>' : ''}
+            `;
+          } else {
+            // default rendering for other feeds
+            li.innerHTML = `<a href="${item.link}" target="_blank" rel="noopener noreferrer">${item.title}</a>`;
+          }
+          list.appendChild(li);
+        });
+
+        // Empty-state
+        if (!list.children.length) {
+          const li = document.createElement('li');
+          li.className = isNews ? 'card' : '';
+          li.textContent = 'No items available right now.';
+          list.appendChild(li);
+        }
+      } catch (err) {
+        console.error('RSS load error:', err);
+        list.innerHTML = "";
         const li = document.createElement('li');
-        li.innerHTML = `<a href="${item.link}" target="_blank">${item.title}</a>`;
+        li.className = (elementId === "feed2") ? 'card' : '';
+        li.textContent = 'Could not load feed. Try again later.';
         list.appendChild(li);
-      });
-    }
-
-    // NEWS FEED (Google News query you provided)
-    const newsFeed = "https://news.google.com/rss/search?q=sUAS+military+operations+OR+armed+drones";
-
-    function refreshFeeds() {
-      loadRSS(newsFeed, "feed2");
-    }
-
-    refreshFeeds(); // initial load
-
-    // Auto-refresh every 5 minutes (300000 ms)
-    setInterval(refreshFeeds, 300000);
-  </script>
-
-</body>
-</html>
+      }

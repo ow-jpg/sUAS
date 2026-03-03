@@ -34,21 +34,97 @@
     a { text-decoration: none; color: #4da3ff; }
     a:hover { text-decoration: underline; }
 
-    /* --- X embed --- */
-    .x-embed-wrap {
+    /* --- X column --- */
+    #x-embed-container {
       border-radius: 10px;
       overflow: hidden;
       border: 1px solid #333;
+      min-height: 80px;
+      position: relative;
     }
 
-    .x-embed-wrap iframe {
+    #x-embed-container iframe {
       display: block;
       width: 100% !important;
       border: none !important;
-      border-radius: 10px;
     }
 
-    /* --- Scrollable news list: ~3 cards visible --- */
+    /* Loading spinner shown while widget initialises */
+    #x-loading {
+      padding: 1.2rem 1rem;
+      color: #aaa;
+      font-size: 0.9rem;
+      text-align: center;
+    }
+
+    /* Fallback account cards — hidden until needed */
+    #x-fallback {
+      display: none;
+    }
+
+    .x-fallback-header {
+      font-size: 0.82rem;
+      color: #888;
+      margin-bottom: 0.75rem;
+    }
+
+    .x-fallback-header a {
+      color: #4da3ff;
+    }
+
+    .x-scroll-wrap {
+      max-height: 520px;
+      overflow-y: auto;
+      padding-right: 6px;
+      -webkit-mask-image: linear-gradient(to bottom, black 80%, transparent 100%);
+      mask-image: linear-gradient(to bottom, black 80%, transparent 100%);
+    }
+
+    .x-scroll-wrap::-webkit-scrollbar { width: 5px; }
+    .x-scroll-wrap::-webkit-scrollbar-track { background: transparent; }
+    .x-scroll-wrap::-webkit-scrollbar-thumb { background: #2a2a2a; border-radius: 4px; }
+
+    .account-card {
+      display: flex;
+      align-items: flex-start;
+      gap: 0.75rem;
+      background: #252525;
+      border: 1px solid #333;
+      border-radius: 10px;
+      padding: 0.75rem 0.9rem;
+      margin-bottom: 0.6rem;
+      transition: border-color 0.15s ease, transform 0.12s ease;
+    }
+
+    .account-card:hover {
+      border-color: #4da3ff;
+      transform: translateY(-1px);
+    }
+
+    .account-card .handle {
+      font-weight: 700;
+      color: #4da3ff;
+      font-size: 0.9rem;
+      display: block;
+      margin-bottom: 0.2rem;
+    }
+
+    .account-card .handle:hover { text-decoration: underline; }
+
+    .account-card .desc {
+      font-size: 0.82rem;
+      color: #aaa;
+      line-height: 1.4;
+    }
+
+    .account-card .tag {
+      font-size: 0.72rem;
+      color: #7a5a96;
+      margin-top: 0.25rem;
+      display: block;
+    }
+
+    /* --- Scrollable news list --- */
     .news-scroll-wrap {
       max-height: 520px;
       overflow-y: auto;
@@ -79,7 +155,7 @@
 
     .card:hover {
       transform: translateY(-1px);
-      box-shadow: 0 6px 14px rgba(0, 0, 0, 0.35);
+      box-shadow: 0 6px 14px rgba(0,0,0,0.35);
       border-color: #5a4370;
     }
 
@@ -127,21 +203,34 @@
 
   <div class="columns">
 
-    <!-- X / Twitter list embed -->
+    <!-- X column -->
     <div class="column">
       <h2>X</h2>
-      <div class="x-embed-wrap">
+
+      <!-- Embed attempt -->
+      <div id="x-embed-container">
+        <div id="x-loading">Loading feed…</div>
         <a class="twitter-timeline"
            href="https://x.com/i/lists/2028797011194237024"
            data-theme="dark"
            data-height="520"
-           data-chrome="noheader nofooter noborders transparent"
-           data-tweet-limit=""
-        >Loading feed…</a>
+           data-chrome="noheader nofooter noborders transparent">
+        </a>
+      </div>
+
+      <!-- Fallback account cards (shown if embed times out) -->
+      <div id="x-fallback">
+        <p class="x-fallback-header">
+          Live feed unavailable —
+          <a href="https://x.com/i/lists/2028797011194237024" target="_blank" rel="noopener noreferrer">open full list on X ↗</a>
+        </p>
+        <div class="x-scroll-wrap">
+          <div id="account-cards"></div>
+        </div>
       </div>
     </div>
 
-    <!-- News feed -->
+    <!-- News column -->
     <div class="column">
       <h2>news</h2>
       <div id="news-status" class="status" style="display:none;"></div>
@@ -150,7 +239,7 @@
       </div>
     </div>
 
-    <!-- Academia -->
+    <!-- Academia column -->
     <div class="column">
       <h2>academia</h2>
       <ul id="feed3"></ul>
@@ -158,29 +247,99 @@
 
   </div>
 
-  <!-- X widget script — loaded async so it doesn't block the page -->
+  <!-- X widget — async so it doesn't block the page -->
   <script async src="https://platform.twitter.com/widgets.js" charset="utf-8"></script>
 
   <script>
-    /*
-      FEED SOURCES
-      ────────────
-      Google News (2 broad queries, small-drone focused)
-        A — FPV / small drone combat & battlefield use
-        B — sUAS capability, counter-drone, military tech
-
-      Direct feeds filtered client-side by TITLE_REQUIRE_TERMS:
-        C  Ukrinform
-        D  United24 Media
-        E  Reuters World
-        F  Kyiv Independent
-        G  The War Zone (TWZ)
-        H  Defense News UAS   (no require filter — UAS-specific section)
-        I  DroneXL
-        J  Dronefare           (no require filter — 100% drone warfare)
-        K  sUAS News           (no require filter — 100% sUAS)
-        L  Covert Shores
+    /* ── X embed timeout & fallback ───────────────────────────────────────────
+       Give the Twitter widget 6 seconds to render an iframe.
+       If it hasn't by then, hide the embed container and show account cards.
     */
+    var X_TIMEOUT_MS = 6000;
+
+    var ACCOUNTS = [
+      // OSINT / battlefield
+      { handle: 'UAWeapons',      desc: 'Ukrainian weapons & drone footage tracker',              tag: 'OSINT · battlefield' },
+      { handle: 'DefMon3',        desc: 'Detailed OSINT, frequent FPV footage & analysis',        tag: 'OSINT · battlefield' },
+      { handle: 'Rayan_Nat_UA',   desc: 'Ukrainian frontline drone footage',                      tag: 'OSINT · Ukraine' },
+      { handle: 'naalsio26',      desc: 'FPV strike compilation & tactical analysis',             tag: 'OSINT · FPV' },
+      { handle: 'OSINTtechnical', desc: 'Broad OSINT with strong drone coverage',                 tag: 'OSINT' },
+      { handle: 'UAControlMap',   desc: 'Conflict mapping & drone incident tracking',             tag: 'OSINT · mapping' },
+      // FPV / sUAS specific
+      { handle: 'FPVukraine',     desc: 'Dedicated Ukrainian FPV drone operations',               tag: 'FPV · Ukraine' },
+      { handle: 'dronewarriors',  desc: 'FPV warfare coverage',                                   tag: 'FPV · warfare' },
+      { handle: 'UkrainianFPV',   desc: 'Frontline FPV operator content',                        tag: 'FPV · Ukraine' },
+      // Defense / UAS analysis
+      { handle: 'sambennis',      desc: 'Drone warfare analyst',                                  tag: 'analysis' },
+      { handle: 'drones_watcher', desc: 'Tracks drone use in conflict zones',                     tag: 'analysis' },
+      { handle: 'JominiW',        desc: 'Military analyst, strong UAS focus',                     tag: 'analysis' },
+      { handle: 'CalibreObscura', desc: 'Weapons & equipment analyst, FPV coverage',              tag: 'analysis · FPV' },
+      // Sahel
+      { handle: 'MENASTREAM',     desc: 'Premier Sahel OSINT — drone use by state & non-state actors in Mali/Niger/Burkina', tag: 'Sahel · OSINT' },
+      // Publications
+      { handle: 'TheWarZone',     desc: 'The War Zone — breaking defense & UAS news',             tag: 'publication' },
+      { handle: 'sUASnews',       desc: 'sUAS News — dedicated small UAS industry coverage',      tag: 'publication' },
+      { handle: 'KyivIndependent',desc: 'Kyiv Independent — frontline Ukraine reporting',         tag: 'publication' },
+      { handle: 'Dronefare',      desc: 'Drone warfare analysis & commentary',                    tag: 'publication' }
+    ];
+
+    function buildAccountCards() {
+      var container = document.getElementById('account-cards');
+      if (!container) return;
+      container.innerHTML = '';
+      ACCOUNTS.forEach(function(acc) {
+        var div = document.createElement('div');
+        div.className = 'account-card';
+        div.innerHTML =
+          '<div>' +
+            '<a class="handle" href="https://x.com/' + acc.handle + '" target="_blank" rel="noopener noreferrer">@' + acc.handle + '</a>' +
+            '<span class="desc">' + acc.desc + '</span>' +
+            '<span class="tag">' + acc.tag + '</span>' +
+          '</div>';
+        container.appendChild(div);
+      });
+    }
+
+    function showFallback() {
+      var embedContainer = document.getElementById('x-embed-container');
+      var fallback = document.getElementById('x-fallback');
+      if (embedContainer) embedContainer.style.display = 'none';
+      if (fallback) fallback.style.display = 'block';
+      buildAccountCards();
+    }
+
+    // Start timeout — check if Twitter widget rendered an iframe
+    var xTimer = setTimeout(function() {
+      var iframe = document.querySelector('#x-embed-container iframe');
+      if (!iframe || iframe.offsetHeight < 100) {
+        showFallback();
+      }
+    }, X_TIMEOUT_MS);
+
+    // If widget fires its loaded event, clear the timeout and hide loading text
+    if (window.twttr) {
+      window.twttr.ready(function(twttr) {
+        twttr.events.bind('rendered', function() {
+          clearTimeout(xTimer);
+          var loading = document.getElementById('x-loading');
+          if (loading) loading.style.display = 'none';
+        });
+      });
+    } else {
+      window.addEventListener('load', function() {
+        if (window.twttr && window.twttr.ready) {
+          window.twttr.ready(function(twttr) {
+            twttr.events.bind('rendered', function() {
+              clearTimeout(xTimer);
+              var loading = document.getElementById('x-loading');
+              if (loading) loading.style.display = 'none';
+            });
+          });
+        }
+      });
+    }
+
+    /* ── News feed ────────────────────────────────────────────────────────── */
 
     var QUERY_A =
       '("FPV drone" OR "FPV attack" OR "FPV strike" OR "FPV drones" OR ' +
@@ -249,7 +408,6 @@
       return TITLE_REQUIRE_TERMS.some(function(t) { return lower.indexOf(t) !== -1; });
     }
 
-    /* ---------------- Helpers ---------------- */
     function formatDate(dateStr) {
       try {
         var d = new Date(dateStr);
@@ -280,7 +438,6 @@
       return (els && els.length) ? (els[0].textContent || '').trim() : '';
     }
 
-    /* ---------------- Deduplication ---------------- */
     var STOPWORDS = {
       a:1,an:1,the:1,in:1,on:1,at:1,to:1,of:1,and:1,or:1,for:1,
       is:1,are:1,was:1,were:1,its:1,it:1,as:1,by:1,with:1,from:1,
@@ -315,7 +472,6 @@
       return out;
     }
 
-    /* ---------------- Cache ---------------- */
     var CACHE_KEY = 'news_cache_v12_20260303';
     var CACHE_TIME_KEY = CACHE_KEY + '_time';
     var CACHE_TTL_MS = 2 * 60 * 60 * 1000;
@@ -332,7 +488,6 @@
       } catch (e) { return { items: [], when: 0, fresh: false }; }
     }
 
-    /* ---------------- Sort & render ---------------- */
     function sortDesc(items) {
       return (items || []).slice().sort(function(a, b) {
         return new Date(b.pubDateISO || 0) - new Date(a.pubDateISO || 0);
@@ -345,7 +500,6 @@
       var filtered = (items || []).filter(function(it) { return !isTitleBlocked(it.title); });
       var ordered = sortDesc(dedupeItems(filtered));
       var n = Math.min(ordered.length, maxItems || 20);
-
       if (!n) {
         var empty = document.createElement('li');
         empty.className = 'card';
@@ -353,7 +507,6 @@
         list.appendChild(empty);
         return;
       }
-
       for (var i = 0; i < n; i++) {
         var it = ordered[i];
         var li = document.createElement('li');
@@ -370,7 +523,6 @@
       }
     }
 
-    /* ---------------- Proxy fetch ---------------- */
     function buildProxyUrls(feedUrl) {
       var sep = feedUrl.indexOf('?') === -1 ? '?' : '&';
       var aug = feedUrl + sep + '_=' + Date.now();
@@ -404,7 +556,6 @@
       return res.json();
     }
 
-    /* ---------------- Normalise ---------------- */
     function itemsFromXml(xmlDoc, limit, opts) {
       opts = opts || {};
       var out = [], items = xmlDoc.getElementsByTagName('item');
@@ -419,13 +570,7 @@
         var creators = it.getElementsByTagName('dc:creator');
         if (creators.length) author = (creators[0].textContent || '').trim();
         if (!author) author = textOf(it, 'author');
-        var item = {
-          title: split.headline || 'Untitled',
-          link: textOf(it, 'link') || '#',
-          publication: opts.pub || source || split.publication || '',
-          author: author,
-          pubDateISO: textOf(it, 'pubDate') || ''
-        };
+        var item = { title: split.headline || 'Untitled', link: textOf(it, 'link') || '#', publication: opts.pub || source || split.publication || '', author: author, pubDateISO: textOf(it, 'pubDate') || '' };
         if (opts.requireFilter && !titlePassesRequire(item.title)) continue;
         out.push(item);
       }
@@ -439,64 +584,41 @@
       for (var i = 0; i < n; i++) {
         var it = arr[i] || {};
         var split = splitTitle(it.title || '');
-        var item = {
-          title: split.headline || 'Untitled',
-          link: it.link || '#',
-          publication: opts.pub || it.author || split.publication || '',
-          author: it.author || '',
-          pubDateISO: it.pubDate || ''
-        };
+        var item = { title: split.headline || 'Untitled', link: it.link || '#', publication: opts.pub || it.author || split.publication || '', author: it.author || '', pubDateISO: it.pubDate || '' };
         if (opts.requireFilter && !titlePassesRequire(item.title)) continue;
         out.push(item);
       }
       return out;
     }
 
-    /* ---------------- Fetch one feed ---------------- */
     async function fetchOneFeed(feedUrl, opts) {
       opts = opts || {};
-      var augUrl = (feedUrl.indexOf('news.google.com') !== -1)
-        ? feedUrl + '&hl=en&gl=US&ceid=US:en'
-        : feedUrl;
+      var augUrl = (feedUrl.indexOf('news.google.com') !== -1) ? feedUrl + '&hl=en&gl=US&ceid=US:en' : feedUrl;
       try {
         return itemsFromXml(await tryFetchXML(augUrl), 50, opts);
       } catch (e) {
-        console.warn('XML failed for', feedUrl, '— trying rss2json');
-        try {
-          return itemsFromRss2Json(await fetchRss2Json(augUrl, 50), 50, opts);
-        } catch (e2) {
-          console.warn('Both methods failed for', feedUrl);
-          return [];
-        }
+        try { return itemsFromRss2Json(await fetchRss2Json(augUrl, 50), 50, opts); }
+        catch (e2) { return []; }
       }
     }
 
-    /* ---------------- Controller ---------------- */
     async function loadNews() {
       var list = document.getElementById('feed2');
       showStatus('Loading news…', false);
       list.innerHTML = '<li class="card" style="opacity:.8">Loading…</li>';
-
       try {
-        var fetchPromises = [
-          fetchOneFeed(FEED_URL_A, {}),
-          fetchOneFeed(FEED_URL_B, {})
-        ];
+        var fetchPromises = [fetchOneFeed(FEED_URL_A, {}), fetchOneFeed(FEED_URL_B, {})];
         DIRECT_FEEDS.forEach(function(f) {
           fetchPromises.push(fetchOneFeed(f.url, { pub: f.pub, requireFilter: f.requireFilter }));
         });
-
         var results = await Promise.allSettled(fetchPromises);
         var combined = [];
         results.forEach(function(r) { if (r.status === 'fulfilled') combined = combined.concat(r.value); });
-
         if (!combined.length) throw new Error('All feeds returned no items');
-
         saveCache(combined);
         renderItems(combined, 'feed2', 20);
         showStatus('', false);
       } catch (err) {
-        console.error('Feed load failed:', err);
         var cache = loadCache();
         if (cache.items && cache.items.length) {
           renderItems(cache.items, 'feed2', 20);

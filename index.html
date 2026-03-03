@@ -34,13 +34,12 @@
     a { text-decoration: none; color: #4da3ff; }
     a:hover { text-decoration: underline; }
 
-    /* --- X column --- */
+    /* ── X column ── */
     #x-embed-container {
+      display: none; /* hidden until embed confirmed working */
       border-radius: 10px;
       overflow: hidden;
       border: 1px solid #333;
-      min-height: 80px;
-      position: relative;
     }
 
     #x-embed-container iframe {
@@ -49,28 +48,14 @@
       border: none !important;
     }
 
-    /* Loading spinner shown while widget initialises */
-    #x-loading {
-      padding: 1.2rem 1rem;
-      color: #aaa;
-      font-size: 0.9rem;
-      text-align: center;
-    }
-
-    /* Fallback account cards — hidden until needed */
-    #x-fallback {
-      display: none;
-    }
-
+    /* Fallback account cards — shown by default */
     .x-fallback-header {
       font-size: 0.82rem;
       color: #888;
       margin-bottom: 0.75rem;
     }
 
-    .x-fallback-header a {
-      color: #4da3ff;
-    }
+    .x-fallback-header a { color: #4da3ff; }
 
     .x-scroll-wrap {
       max-height: 520px;
@@ -86,8 +71,7 @@
 
     .account-card {
       display: flex;
-      align-items: flex-start;
-      gap: 0.75rem;
+      flex-direction: column;
       background: #252525;
       border: 1px solid #333;
       border-radius: 10px;
@@ -105,7 +89,6 @@
       font-weight: 700;
       color: #4da3ff;
       font-size: 0.9rem;
-      display: block;
       margin-bottom: 0.2rem;
     }
 
@@ -121,10 +104,9 @@
       font-size: 0.72rem;
       color: #7a5a96;
       margin-top: 0.25rem;
-      display: block;
     }
 
-    /* --- Scrollable news list --- */
+    /* ── News column ── */
     .news-scroll-wrap {
       max-height: 520px;
       overflow-y: auto;
@@ -138,11 +120,7 @@
     .news-scroll-wrap::-webkit-scrollbar-thumb { background: #5a4370; border-radius: 4px; }
     .news-scroll-wrap::-webkit-scrollbar-thumb:hover { background: #7a5a96; }
 
-    .news-list {
-      display: grid;
-      grid-template-columns: 1fr;
-      gap: 0.8rem;
-    }
+    .news-list { display: grid; grid-template-columns: 1fr; gap: 0.8rem; }
 
     .card {
       background: #4B365F;
@@ -161,7 +139,7 @@
 
     .card a.title {
       display: inline-block;
-      color: #ffffff;
+      color: #fff;
       font-weight: 700;
       text-decoration: none;
       line-height: 1.35;
@@ -203,13 +181,12 @@
 
   <div class="columns">
 
-    <!-- X column -->
+    <!-- X column: account cards shown immediately; embed attempted silently in background -->
     <div class="column">
       <h2>X</h2>
 
-      <!-- Embed attempt -->
+      <!-- Embed container — hidden until confirmed working -->
       <div id="x-embed-container">
-        <div id="x-loading">Loading feed…</div>
         <a class="twitter-timeline"
            href="https://x.com/i/lists/2028797011194237024"
            data-theme="dark"
@@ -218,10 +195,10 @@
         </a>
       </div>
 
-      <!-- Fallback account cards (shown if embed times out) -->
+      <!-- Account cards — visible by default -->
       <div id="x-fallback">
         <p class="x-fallback-header">
-          Live feed unavailable —
+          curated accounts —
           <a href="https://x.com/i/lists/2028797011194237024" target="_blank" rel="noopener noreferrer">open full list on X ↗</a>
         </p>
         <div class="x-scroll-wrap">
@@ -247,99 +224,71 @@
 
   </div>
 
-  <!-- X widget — async so it doesn't block the page -->
-  <script async src="https://platform.twitter.com/widgets.js" charset="utf-8"></script>
-
+  <!-- X widget loaded async and deferred — won't block page render -->
   <script>
-    /* ── X embed timeout & fallback ───────────────────────────────────────────
-       Give the Twitter widget 6 seconds to render an iframe.
-       If it hasn't by then, hide the embed container and show account cards.
-    */
-    var X_TIMEOUT_MS = 6000;
-
+    /* ── Account cards (rendered immediately) ──────────────────────────────── */
     var ACCOUNTS = [
-      // OSINT / battlefield
-      { handle: 'UAWeapons',      desc: 'Ukrainian weapons & drone footage tracker',              tag: 'OSINT · battlefield' },
-      { handle: 'DefMon3',        desc: 'Detailed OSINT, frequent FPV footage & analysis',        tag: 'OSINT · battlefield' },
-      { handle: 'Rayan_Nat_UA',   desc: 'Ukrainian frontline drone footage',                      tag: 'OSINT · Ukraine' },
-      { handle: 'naalsio26',      desc: 'FPV strike compilation & tactical analysis',             tag: 'OSINT · FPV' },
-      { handle: 'OSINTtechnical', desc: 'Broad OSINT with strong drone coverage',                 tag: 'OSINT' },
-      { handle: 'UAControlMap',   desc: 'Conflict mapping & drone incident tracking',             tag: 'OSINT · mapping' },
-      // FPV / sUAS specific
-      { handle: 'FPVukraine',     desc: 'Dedicated Ukrainian FPV drone operations',               tag: 'FPV · Ukraine' },
-      { handle: 'dronewarriors',  desc: 'FPV warfare coverage',                                   tag: 'FPV · warfare' },
-      { handle: 'UkrainianFPV',   desc: 'Frontline FPV operator content',                        tag: 'FPV · Ukraine' },
-      // Defense / UAS analysis
-      { handle: 'sambennis',      desc: 'Drone warfare analyst',                                  tag: 'analysis' },
-      { handle: 'drones_watcher', desc: 'Tracks drone use in conflict zones',                     tag: 'analysis' },
-      { handle: 'JominiW',        desc: 'Military analyst, strong UAS focus',                     tag: 'analysis' },
-      { handle: 'CalibreObscura', desc: 'Weapons & equipment analyst, FPV coverage',              tag: 'analysis · FPV' },
-      // Sahel
-      { handle: 'MENASTREAM',     desc: 'Premier Sahel OSINT — drone use by state & non-state actors in Mali/Niger/Burkina', tag: 'Sahel · OSINT' },
-      // Publications
-      { handle: 'TheWarZone',     desc: 'The War Zone — breaking defense & UAS news',             tag: 'publication' },
-      { handle: 'sUASnews',       desc: 'sUAS News — dedicated small UAS industry coverage',      tag: 'publication' },
-      { handle: 'KyivIndependent',desc: 'Kyiv Independent — frontline Ukraine reporting',         tag: 'publication' },
-      { handle: 'Dronefare',      desc: 'Drone warfare analysis & commentary',                    tag: 'publication' }
+      { handle: 'UAWeapons',       desc: 'Ukrainian weapons & drone footage tracker',                                          tag: 'OSINT · battlefield' },
+      { handle: 'DefMon3',         desc: 'Detailed OSINT, frequent FPV footage & analysis',                                    tag: 'OSINT · battlefield' },
+      { handle: 'Rayan_Nat_UA',    desc: 'Ukrainian frontline drone footage',                                                  tag: 'OSINT · Ukraine' },
+      { handle: 'naalsio26',       desc: 'FPV strike compilation & tactical analysis',                                         tag: 'OSINT · FPV' },
+      { handle: 'OSINTtechnical',  desc: 'Broad OSINT with strong drone coverage',                                             tag: 'OSINT' },
+      { handle: 'UAControlMap',    desc: 'Conflict mapping & drone incident tracking',                                         tag: 'OSINT · mapping' },
+      { handle: 'FPVukraine',      desc: 'Dedicated Ukrainian FPV drone operations',                                           tag: 'FPV · Ukraine' },
+      { handle: 'dronewarriors',   desc: 'FPV warfare coverage',                                                               tag: 'FPV · warfare' },
+      { handle: 'UkrainianFPV',    desc: 'Frontline FPV operator content',                                                    tag: 'FPV · Ukraine' },
+      { handle: 'sambennis',       desc: 'Drone warfare analyst',                                                              tag: 'analysis' },
+      { handle: 'drones_watcher',  desc: 'Tracks drone use in conflict zones',                                                 tag: 'analysis' },
+      { handle: 'JominiW',         desc: 'Military analyst, strong UAS focus',                                                 tag: 'analysis' },
+      { handle: 'CalibreObscura',  desc: 'Weapons & equipment analyst, FPV coverage',                                         tag: 'analysis · FPV' },
+      { handle: 'MENASTREAM',      desc: 'Premier Sahel OSINT — drone use by state & non-state actors in Mali/Niger/Burkina', tag: 'Sahel · OSINT' },
+      { handle: 'TheWarZone',      desc: 'The War Zone — breaking defense & UAS news',                                        tag: 'publication' },
+      { handle: 'sUASnews',        desc: 'sUAS News — dedicated small UAS industry coverage',                                 tag: 'publication' },
+      { handle: 'KyivIndependent', desc: 'Kyiv Independent — frontline Ukraine reporting',                                    tag: 'publication' },
+      { handle: 'Dronefare',       desc: 'Drone warfare analysis & commentary',                                               tag: 'publication' }
     ];
 
-    function buildAccountCards() {
+    (function buildAccountCards() {
       var container = document.getElementById('account-cards');
       if (!container) return;
-      container.innerHTML = '';
       ACCOUNTS.forEach(function(acc) {
         var div = document.createElement('div');
         div.className = 'account-card';
         div.innerHTML =
-          '<div>' +
-            '<a class="handle" href="https://x.com/' + acc.handle + '" target="_blank" rel="noopener noreferrer">@' + acc.handle + '</a>' +
-            '<span class="desc">' + acc.desc + '</span>' +
-            '<span class="tag">' + acc.tag + '</span>' +
-          '</div>';
+          '<a class="handle" href="https://x.com/' + acc.handle + '" target="_blank" rel="noopener noreferrer">@' + acc.handle + '</a>' +
+          '<span class="desc">' + acc.desc + '</span>' +
+          '<span class="tag">' + acc.tag + '</span>';
         container.appendChild(div);
       });
-    }
+    })();
 
-    function showFallback() {
-      var embedContainer = document.getElementById('x-embed-container');
-      var fallback = document.getElementById('x-fallback');
-      if (embedContainer) embedContainer.style.display = 'none';
-      if (fallback) fallback.style.display = 'block';
-      buildAccountCards();
-    }
-
-    // Start timeout — check if Twitter widget rendered an iframe
-    var xTimer = setTimeout(function() {
-      var iframe = document.querySelector('#x-embed-container iframe');
-      if (!iframe || iframe.offsetHeight < 100) {
-        showFallback();
-      }
-    }, X_TIMEOUT_MS);
-
-    // If widget fires its loaded event, clear the timeout and hide loading text
-    if (window.twttr) {
-      window.twttr.ready(function(twttr) {
-        twttr.events.bind('rendered', function() {
-          clearTimeout(xTimer);
-          var loading = document.getElementById('x-loading');
-          if (loading) loading.style.display = 'none';
-        });
-      });
-    } else {
-      window.addEventListener('load', function() {
-        if (window.twttr && window.twttr.ready) {
-          window.twttr.ready(function(twttr) {
-            twttr.events.bind('rendered', function() {
-              clearTimeout(xTimer);
-              var loading = document.getElementById('x-loading');
-              if (loading) loading.style.display = 'none';
-            });
+    /* ── Attempt X embed silently after page is interactive ────────────────────
+       If twttr renders a tall enough iframe, swap it in and hide the cards.
+       Otherwise do nothing — cards stay visible.
+    */
+    window.addEventListener('load', function() {
+      var script = document.createElement('script');
+      script.src = 'https://platform.twitter.com/widgets.js';
+      script.async = true;
+      script.onload = function() {
+        if (!window.twttr || !window.twttr.ready) return;
+        window.twttr.ready(function(twttr) {
+          twttr.events.bind('rendered', function() {
+            // Give the iframe a moment to paint content
+            setTimeout(function() {
+              var iframe = document.querySelector('#x-embed-container iframe');
+              if (iframe && iframe.offsetHeight > 200) {
+                document.getElementById('x-fallback').style.display = 'none';
+                document.getElementById('x-embed-container').style.display = 'block';
+              }
+            }, 1000);
           });
-        }
-      });
-    }
+        });
+      };
+      document.body.appendChild(script);
+    });
 
-    /* ── News feed ────────────────────────────────────────────────────────── */
+    /* ── News feeds ────────────────────────────────────────────────────────── */
 
     var QUERY_A =
       '("FPV drone" OR "FPV attack" OR "FPV strike" OR "FPV drones" OR ' +
@@ -357,17 +306,27 @@
     var FEED_URL_A = 'https://news.google.com/rss/search?q=' + encodeURIComponent(QUERY_A);
     var FEED_URL_B = 'https://news.google.com/rss/search?q=' + encodeURIComponent(QUERY_B);
 
-    var DIRECT_FEEDS = [
-      { url: 'https://www.ukrinform.net/rss/block-lastnews',                                         pub: 'Ukrinform',        requireFilter: true  },
-      { url: 'https://united24media.com/feed',                                                       pub: 'United24 Media',   requireFilter: true  },
-      { url: 'https://feeds.reuters.com/reuters/worldNews',                                          pub: 'Reuters',          requireFilter: true  },
-      { url: 'https://kyivindependent.com/feed/',                                                    pub: 'Kyiv Independent', requireFilter: true  },
-      { url: 'https://twz.com/feed',                                                                 pub: 'The War Zone',     requireFilter: true  },
-      { url: 'https://www.defensenews.com/arc/outboundfeeds/rss/category/unmanned/?outputType=xml', pub: 'Defense News',     requireFilter: false },
-      { url: 'https://dronexl.co/feed',                                                              pub: 'DroneXL',          requireFilter: true  },
-      { url: 'https://dronefare.substack.com/feed',                                                  pub: 'Dronefare',        requireFilter: false },
-      { url: 'https://www.suasnews.com/feed',                                                        pub: 'sUAS News',        requireFilter: false },
-      { url: 'https://www.covertshores.com/feeds/posts/default',                                     pub: 'Covert Shores',    requireFilter: true  }
+    /* Feeds split into priority tiers:
+       Tier 1 (loaded immediately) — highest-signal sources
+       Tier 2 (loaded after ~1s delay) — secondary sources
+       This staggers network requests so the page feels fast.
+    */
+    var FEEDS_TIER1 = [
+      { url: FEED_URL_A,                                                                              pub: '',               requireFilter: false },
+      { url: FEED_URL_B,                                                                              pub: '',               requireFilter: false },
+      { url: 'https://twz.com/feed',                                                                 pub: 'The War Zone',   requireFilter: true  },
+      { url: 'https://www.suasnews.com/feed',                                                        pub: 'sUAS News',      requireFilter: false },
+      { url: 'https://dronefare.substack.com/feed',                                                  pub: 'Dronefare',      requireFilter: false },
+      { url: 'https://kyivindependent.com/feed/',                                                    pub: 'Kyiv Independent', requireFilter: true }
+    ];
+
+    var FEEDS_TIER2 = [
+      { url: 'https://www.ukrinform.net/rss/block-lastnews',                                         pub: 'Ukrinform',      requireFilter: true  },
+      { url: 'https://united24media.com/feed',                                                       pub: 'United24 Media', requireFilter: true  },
+      { url: 'https://feeds.reuters.com/reuters/worldNews',                                          pub: 'Reuters',        requireFilter: true  },
+      { url: 'https://www.defensenews.com/arc/outboundfeeds/rss/category/unmanned/?outputType=xml', pub: 'Defense News',   requireFilter: false },
+      { url: 'https://dronexl.co/feed',                                                              pub: 'DroneXL',        requireFilter: true  },
+      { url: 'https://www.covertshores.com/feeds/posts/default',                                     pub: 'Covert Shores',  requireFilter: true  }
     ];
 
     var TITLE_REQUIRE_TERMS = [
@@ -380,21 +339,16 @@
     ];
 
     var TITLE_BLOCKLIST = [
-      'shahed', 'geran',
-      'tb2', 'tb-2', 'bayraktar', 'akinci', 'aksungur',
+      'shahed', 'geran', 'tb2', 'tb-2', 'bayraktar', 'akinci', 'aksungur',
       'mq-9', 'mq9', 'reaper', 'predator drone', 'global hawk',
-      'wing loong', 'ch-4', 'ch-5', 'pterodactyl',
-      'heron', 'hermes', 'watchkeeper',
+      'wing loong', 'ch-4', 'ch-5', 'heron', 'hermes', 'watchkeeper',
       'hale drone', 'male drone', 'hale uav', 'male uav',
-      'long-range drone', 'strategic drone',
-      'cruise missile', 'ballistic missile', 'glide bomb',
-      'drone light show', 'drone show',
-      'amazon drone', 'drone photography', 'drone racing league',
-      'drone racing championship', 'best drone', 'consumer drone',
+      'long-range drone', 'strategic drone', 'cruise missile', 'ballistic missile', 'glide bomb',
+      'drone light show', 'drone show', 'amazon drone', 'drone photography',
+      'drone racing league', 'drone racing championship', 'best drone', 'consumer drone',
       'drone review', 'dji mini', 'dji air 3', 'dji mavic mini',
-      'aerial photography', 'firefighting drone',
-      'agriculture drone', 'crop drone', 'medical drone',
-      'package delivery', 'postal drone', 'delivery drone',
+      'aerial photography', 'firefighting drone', 'agriculture drone', 'crop drone',
+      'medical drone', 'package delivery', 'postal drone', 'delivery drone',
       'drone footage', 'cinematic drone'
     ];
 
@@ -416,12 +370,12 @@
       } catch (e) { return null; }
     }
 
-    function showStatus(message, isError) {
+    function showStatus(msg, isError) {
       var el = document.getElementById('news-status');
       if (!el) return;
-      el.textContent = message || '';
+      el.textContent = msg || '';
       el.className = isError ? 'status error' : 'status';
-      el.style.display = message ? 'block' : 'none';
+      el.style.display = msg ? 'block' : 'none';
     }
 
     function splitTitle(title) {
@@ -438,16 +392,10 @@
       return (els && els.length) ? (els[0].textContent || '').trim() : '';
     }
 
-    var STOPWORDS = {
-      a:1,an:1,the:1,in:1,on:1,at:1,to:1,of:1,and:1,or:1,for:1,
-      is:1,are:1,was:1,were:1,its:1,it:1,as:1,by:1,with:1,from:1,
-      that:1,this:1,be:1,has:1,have:1,after:1,over:1,says:1,say:1,
-      new:1,amid:1,into:1,how:1,why:1,what:1,when:1,who:1
-    };
+    var STOPWORDS = { a:1,an:1,the:1,in:1,on:1,at:1,to:1,of:1,and:1,or:1,for:1,is:1,are:1,was:1,were:1,its:1,it:1,as:1,by:1,with:1,from:1,that:1,this:1,be:1,has:1,have:1,after:1,over:1,says:1,say:1,new:1,amid:1,into:1,how:1,why:1,what:1,when:1,who:1 };
 
     function fingerprint(title) {
-      return (title || '').toLowerCase().replace(/[^a-z0-9\s]/g, '').split(/\s+/)
-        .filter(function(w) { return w.length > 2 && !STOPWORDS[w]; });
+      return (title || '').toLowerCase().replace(/[^a-z0-9\s]/g, '').split(/\s+/).filter(function(w) { return w.length > 2 && !STOPWORDS[w]; });
     }
 
     function jaccard(a, b) {
@@ -472,9 +420,10 @@
       return out;
     }
 
-    var CACHE_KEY = 'news_cache_v12_20260303';
+    var CACHE_KEY = 'news_cache_v13_20260303';
     var CACHE_TIME_KEY = CACHE_KEY + '_time';
     var CACHE_TTL_MS = 2 * 60 * 60 * 1000;
+    var allItems = []; // accumulates items from both tiers
 
     function saveCache(items) {
       try { localStorage.setItem(CACHE_KEY, JSON.stringify(items || [])); localStorage.setItem(CACHE_TIME_KEY, String(Date.now())); } catch (e) {}
@@ -489,17 +438,15 @@
     }
 
     function sortDesc(items) {
-      return (items || []).slice().sort(function(a, b) {
-        return new Date(b.pubDateISO || 0) - new Date(a.pubDateISO || 0);
-      });
+      return (items || []).slice().sort(function(a, b) { return new Date(b.pubDateISO || 0) - new Date(a.pubDateISO || 0); });
     }
 
-    function renderItems(items, elementId, maxItems) {
-      var list = document.getElementById(elementId);
+    function renderItems(items) {
+      var list = document.getElementById('feed2');
       list.innerHTML = '';
       var filtered = (items || []).filter(function(it) { return !isTitleBlocked(it.title); });
       var ordered = sortDesc(dedupeItems(filtered));
-      var n = Math.min(ordered.length, maxItems || 20);
+      var n = Math.min(ordered.length, 20);
       if (!n) {
         var empty = document.createElement('li');
         empty.className = 'card';
@@ -544,15 +491,14 @@
           return xml;
         } catch (e) {}
       }
-      throw new Error('All XML proxies failed for ' + feedUrl);
+      throw new Error('proxies failed');
     }
 
     async function fetchRss2Json(feedUrl, count) {
       var sep = feedUrl.indexOf('?') === -1 ? '?' : '&';
-      var url = 'https://api.rss2json.com/v1/api.json?count=' + (count || 50) +
-                '&rss_url=' + encodeURIComponent(feedUrl + sep + '_=' + Date.now());
+      var url = 'https://api.rss2json.com/v1/api.json?count=' + (count || 50) + '&rss_url=' + encodeURIComponent(feedUrl + sep + '_=' + Date.now());
       var res = await fetch(url);
-      if (!res.ok) throw new Error('rss2json HTTP ' + res.status);
+      if (!res.ok) throw new Error('rss2json ' + res.status);
       return res.json();
     }
 
@@ -591,9 +537,10 @@
       return out;
     }
 
-    async function fetchOneFeed(feedUrl, opts) {
-      opts = opts || {};
-      var augUrl = (feedUrl.indexOf('news.google.com') !== -1) ? feedUrl + '&hl=en&gl=US&ceid=US:en' : feedUrl;
+    async function fetchOneFeed(f) {
+      var feedUrl = f.url;
+      var opts = { pub: f.pub, requireFilter: f.requireFilter };
+      var augUrl = feedUrl.indexOf('news.google.com') !== -1 ? feedUrl + '&hl=en&gl=US&ceid=US:en' : feedUrl;
       try {
         return itemsFromXml(await tryFetchXML(augUrl), 50, opts);
       } catch (e) {
@@ -603,35 +550,34 @@
     }
 
     async function loadNews() {
-      var list = document.getElementById('feed2');
-      showStatus('Loading news…', false);
-      list.innerHTML = '<li class="card" style="opacity:.8">Loading…</li>';
-      try {
-        var fetchPromises = [fetchOneFeed(FEED_URL_A, {}), fetchOneFeed(FEED_URL_B, {})];
-        DIRECT_FEEDS.forEach(function(f) {
-          fetchPromises.push(fetchOneFeed(f.url, { pub: f.pub, requireFilter: f.requireFilter }));
-        });
-        var results = await Promise.allSettled(fetchPromises);
-        var combined = [];
-        results.forEach(function(r) { if (r.status === 'fulfilled') combined = combined.concat(r.value); });
-        if (!combined.length) throw new Error('All feeds returned no items');
-        saveCache(combined);
-        renderItems(combined, 'feed2', 20);
+      // Show cache instantly if available
+      var cache = loadCache();
+      if (cache.items && cache.items.length) {
+        allItems = cache.items;
+        renderItems(allItems);
         showStatus('', false);
-      } catch (err) {
-        var cache = loadCache();
-        if (cache.items && cache.items.length) {
-          renderItems(cache.items, 'feed2', 20);
-          showStatus('Showing cached news from ' + (cache.when ? new Date(cache.when).toLocaleString() : 'earlier') + ' (live update failed).', true);
-        } else {
-          list.innerHTML = '<li class="card">Could not load feed. Try again later.</li>';
-          showStatus('Could not load news (network issue or rate limiting). Will retry automatically.', true);
-        }
+      } else {
+        document.getElementById('feed2').innerHTML = '<li class="card" style="opacity:.6">Loading…</li>';
       }
+
+      // Tier 1: load high-priority feeds immediately
+      var t1results = await Promise.allSettled(FEEDS_TIER1.map(fetchOneFeed));
+      t1results.forEach(function(r) { if (r.status === 'fulfilled') allItems = allItems.concat(r.value); });
+      saveCache(allItems);
+      renderItems(allItems);
+      showStatus('', false);
+
+      // Tier 2: load remaining feeds after a short delay to avoid hammering proxies
+      setTimeout(async function() {
+        var t2results = await Promise.allSettled(FEEDS_TIER2.map(fetchOneFeed));
+        t2results.forEach(function(r) { if (r.status === 'fulfilled') allItems = allItems.concat(r.value); });
+        saveCache(allItems);
+        renderItems(allItems);
+      }, 1500);
     }
 
     loadNews();
-    setInterval(loadNews, 300000);
+    setInterval(function() { allItems = []; loadNews(); }, 300000);
   </script>
 
 </body>

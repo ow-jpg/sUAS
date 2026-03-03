@@ -124,6 +124,12 @@
   </div>
 
   <script>
+    // ---------------- CONFIG: Query & Feed URL ----------------
+    // Filtered Google News query (small/FPV/commercial drones; exclude big platforms)
+    var FEED_URL =
+      'https://news.google.com/rss/search?q=' +
+      encodeURIComponent('(intitle:"FPV drone" OR intitle:"FPV attack" OR intitle:"FPV strike" OR "first person view drone" OR "commercial drone" OR "commercial quadcopter" OR "racing drone" OR "DIY drone" OR "improvised drone" OR "small drone" OR sUAS OR "small UAS" OR "quad" OR "DJI Mavic" OR "DJI FPV" OR "off-the-shelf drone" OR "COTS drone" OR "FPV munition" OR "loitering quadcopter") AND (drone OR sUAS OR UAS OR UAV OR quadcopter) AND (warfare OR combat OR attack OR strike OR battlefield OR military) NOT (shahed OR "shahed-136" OR "shahed 131" OR "suicide drone" OR "long-range drone" OR "ballistic" OR TB2 OR "Bayraktar" OR "Reaper" OR "MQ-9" OR "MALE UAV" OR "HALE UAV" OR "wing loong" OR "loyal wingman")');
+
     // ---------------- Helpers ----------------
     function formatDate(dateStr) {
       try {
@@ -141,8 +147,7 @@
       el.style.display = message ? 'block' : 'none';
     }
 
-    // Split a Google News style title "Headline - Outlet" (FIRST hyphen) or "Headline — Outlet"
-    // Returns {headline, publication}
+    // Trim title before first hyphen / em dash → publication after separator
     function splitTitle(title) {
       if (!title) return { headline: '', publication: '' };
       var hyphenIdx = title.indexOf(' - ');
@@ -162,17 +167,18 @@
       return { headline: title.trim(), publication: '' };
     }
 
-    // Extract text of the first matching subelement
     function textOf(node, tag) {
       var els = node.getElementsByTagName(tag);
       if (els && els.length) return (els[0].textContent || '').trim();
       return '';
     }
 
-    // -------- LocalStorage cache --------
-    var CACHE_KEY = 'news_cache_v1';
-    var CACHE_TIME_KEY = 'news_cache_time_v1';
-    var CACHE_TTL_MS = 6 * 60 * 60 * 1000; // 6 hours
+    // ---------------- LocalStorage cache (versioned & URL-tied) ----------------
+    var CACHE_VERSION = 'v3_20260303';
+    var CACHE_BASE = 'news_cache_' + CACHE_VERSION + '_';
+    var CACHE_KEY = CACHE_BASE + btoa(FEED_URL).slice(0, 16);
+    var CACHE_TIME_KEY = CACHE_KEY + '_time';
+    var CACHE_TTL_MS = 2 * 60 * 60 * 1000; // consider 'fresh' for 2 hours
 
     function saveCache(items) {
       try {
@@ -193,20 +199,6 @@
       }
     }
 
-    function renderFromCacheIfAvailable() {
-      var cache = loadCache();
-      if (cache.items && cache.items.length) {
-        renderNormalizedItems(cache.items, 'feed2', 20);
-        var whenDate = cache.when ? new Date(cache.when) : null;
-        var whenStr = whenDate ? whenDate.toLocaleString() : 'earlier';
-        showStatus('Showing cached news from ' + whenStr + '… updating in background.', false);
-        return true;
-      }
-      return false;
-    }
-
-    // -------- Normalized rendering --------
-    // items: [{title, link, publication, author, pubDateISO}]
     function renderNormalizedItems(items, elementId, maxItems) {
       var list = document.getElementById(elementId);
       list.innerHTML = '';
@@ -242,14 +234,15 @@
       }
     }
 
-    // -------- Fetch via multiple proxies (XML path) --------
+    // ---------------- Fetch via multiple proxies (XML path) ----------------
     function buildProxyUrls(feedUrl) {
-      // Try with AU English edition params to improve consistency
-      var augmented = feedUrl + '&hl=en-AU&gl=AU&ceid=AU:en';
+      // Region/language & cache-bust so proxies fetch fresh content
+      var cacheBust = '&_=' + Date.now();
+      var augmented = feedUrl + '&hl=en-AU&gl=AU&ceid=AU:en' + cacheBust;
       return [
-        'https://cors.isomorphic-git.org/' + augmented,          // Proxy 1
-        'https://corsproxy.io/?' + augmented,                     // Proxy 2
-        'https://api.allorigins.win/raw?url=' + encodeURIComponent(augmented) // Proxy 3
+        'https://cors.isomorphic-git.org/' + augmented,                                 // Proxy 1
+        'https://corsproxy.io/?' + augmented,                                           // Proxy 2
+        'https://api.allorigins.win/raw?url=' + encodeURIComponent(augmented)           // Proxy 3
       ];
     }
 
@@ -272,16 +265,17 @@
       throw new Error('All XML proxies failed');
     }
 
-    // -------- Fallback: rss2json --------
+    // ---------------- Fallback: rss2json ----------------
     async function fetchRSSViaRss2Json(feedUrl, count) {
-      // Request up to 20
-      var url = 'https://api.rss2json.com/v1/api.json?count=' + (count || 20) + '&rss_url=' + encodeURIComponent(feedUrl + '&hl=en-AU&gl=AU&ceid=AU:en');
+      // Request up to 20, include the same region params & a cache-bust
+      var url = 'https://api.rss2json.com/v1/api.json?count=' + (count || 20) +
+                '&rss_url=' + encodeURIComponent(feedUrl + '&hl=en-AU&gl=AU&ceid=AU:en&_=' + Date.now());
       var res = await fetch(url);
       if (!res.ok) throw new Error('rss2json HTTP ' + res.status);
       return await res.json();
     }
 
-    // -------- Normalize items from XML / JSON --------
+    // ---------------- Normalize items from XML / JSON ----------------
     function itemsFromXml(xmlDoc, limit) {
       var out = [];
       var items = xmlDoc.getElementsByTagName('item');
@@ -292,7 +286,7 @@
         var link = textOf(it, 'link') || '#';
         var pubDate = textOf(it, 'pubDate') || '';
 
-        // Prefer explicit <source> for publication
+        // Prefer explicit <source> (Google News adds this for the outlet)
         var sourceNodes = it.getElementsByTagName('source');
         var source = (sourceNodes && sourceNodes.length) ? (sourceNodes[0].textContent || '').trim() : '';
 
@@ -347,19 +341,14 @@
     // ---------------- Controller ----------------
     async function loadNews() {
       var list = document.getElementById('feed2');
-      var showedCache = renderFromCacheIfAvailable(); // show cache immediately if we have it
-      if (!showedCache) {
-        showStatus('Loading news…', false);
-        list.innerHTML = '<li class="card" aria-busy="true" style="opacity:.8">Loading…</li>';
-      }
 
-      // *** FILTERED Google News RSS (encoded) ***
-      // Title-focused FPV/sUAS/commercial small drone warfare; excludes big drones (Shahed, MQ-9, TB2, etc.).
-      var feedUrl = 'https://news.google.com/rss/search?q=%28intitle%3A%22FPV%20drone%22%20OR%20intitle%3A%22FPV%20attack%22%20OR%20intitle%3A%22FPV%20strike%22%20OR%20%22first%20person%20view%20drone%22%20OR%20%22commercial%20drone%22%20OR%20%22commercial%20quadcopter%22%20OR%20%22racing%20drone%22%20OR%20%22DIY%20drone%22%20OR%20%22improvised%20drone%22%20OR%20%22small%20drone%22%20OR%20sUAS%20OR%20%22small%20UAS%22%20OR%20%22quad%22%20OR%20%22DJI%20Mavic%22%20OR%20%22DJI%20FPV%22%20OR%20%22off-the-shelf%20drone%22%20OR%20%22COTS%20drone%22%20OR%20%22FPV%20munition%22%20OR%20%22loitering%20quadcopter%22%29%20AND%20%28drone%20OR%20sUAS%20OR%20UAS%20OR%20UAV%20OR%20quadcopter%29%20AND%20%28warfare%20OR%20combat%20OR%20attack%20OR%20strike%20OR%20battlefield%20OR%20military%29%20NOT%20%28shahed%20OR%20%22shahed-136%22%20OR%20%22shahed%20131%22%20OR%20%22suicide%20drone%22%20OR%20%22long-range%20drone%22%20OR%20%22ballistic%22%20OR%20TB2%20OR%20%22Bayraktar%22%20OR%20%22Reaper%22%20OR%20%22MQ-9%22%20OR%20%22MALE%20UAV%22%20OR%20%22HALE%20UAV%22%20OR%20%22wing%20loong%22%20OR%20%22loyal%20wingman%22%29';
+      // Do NOT render stale cache first; we’ll fetch live, then fall back to cache.
+      showStatus('Loading news…', false);
+      list.innerHTML = '<li class="card" aria-busy="true" style="opacity:.8">Loading…</li>';
 
       try {
         // Preferred path: multiple CORS proxies fetching RAW RSS XML
-        var xml = await tryFetchXMLWithProxies(feedUrl);
+        var xml = await tryFetchXMLWithProxies(FEED_URL);
         var items = itemsFromXml(xml, 20);
         saveCache(items);
         renderNormalizedItems(items, 'feed2', 20);
@@ -367,16 +356,19 @@
       } catch (e1) {
         console.warn('XML proxy path failed, trying rss2json fallback:', e1);
         try {
-          var json = await fetchRSSViaRss2Json(feedUrl, 20);
+          var json = await fetchRSSViaRss2Json(FEED_URL, 20);
           var itemsJ = itemsFromRss2Json(json, 20);
           saveCache(itemsJ);
           renderNormalizedItems(itemsJ, 'feed2', 20);
           showStatus('', false);
         } catch (e2) {
           console.error('rss2json fallback failed:', e2);
-          // If we showed cache, keep it and show error banner; otherwise show a card error.
-          if (showedCache) {
-            showStatus('Could not load fresh news (network/proxy issue). Showing cached results.', true);
+          // Fall back to cache if we have it
+          var cache = loadCache();
+          if (cache.items && cache.items.length) {
+            renderNormalizedItems(cache.items, 'feed2', 20);
+            var whenStr = cache.when ? new Date(cache.when).toLocaleString() : 'earlier';
+            showStatus('Showing cached news from ' + whenStr + ' (live update failed).', true);
           } else {
             list.innerHTML = '';
             var li = document.createElement('li');
@@ -391,13 +383,11 @@
 
     function refreshFeeds() {
       loadNews();
-      // When you add these, implement loaders similarly:
-      // loadSocial();
-      // loadAcademia();
+      // loadSocial(); loadAcademia(); // when ready
     }
 
     // Initial load + periodic refresh
-    refreshFeeds(); // initial load
+    refreshFeeds();
     setInterval(refreshFeeds, 300000); // every 5 minutes
   </script>
 

@@ -36,16 +36,13 @@
 
     /* --- Scrollable news list: ~3 cards visible --- */
     .news-scroll-wrap {
-      max-height: 520px;   /* roughly 3 cards tall */
+      max-height: 520px;
       overflow-y: auto;
-      padding-right: 6px;  /* space so scrollbar doesn't overlap cards */
-
-      /* subtle fade at the bottom to hint there's more */
+      padding-right: 6px;
       -webkit-mask-image: linear-gradient(to bottom, black 80%, transparent 100%);
       mask-image: linear-gradient(to bottom, black 80%, transparent 100%);
     }
 
-    /* Scrollbar styling */
     .news-scroll-wrap::-webkit-scrollbar { width: 5px; }
     .news-scroll-wrap::-webkit-scrollbar-track { background: transparent; }
     .news-scroll-wrap::-webkit-scrollbar-thumb { background: #5a4370; border-radius: 4px; }
@@ -123,7 +120,6 @@
     <div class="column">
       <h2>news</h2>
       <div id="news-status" class="status" style="display:none;"></div>
-      <!-- scroll wrapper constrains height; news-list sits inside it -->
       <div class="news-scroll-wrap">
         <ul id="feed2" class="news-list"></ul>
       </div>
@@ -136,28 +132,58 @@
   </div>
 
   <script>
+    /*
+      Both queries REQUIRE a small/FPV-specific term in the title.
+      The AND structure means Google must match a small-drone term
+      AND a military/conflict term — reducing large-platform bleed.
+
+      Client-side blocklist catches anything that still slips through.
+    */
+
+    // QUERY_A: FPV & small drone combat use
     var QUERY_A =
-      '("FPV drone" OR "FPV attack" OR "FPV strike" OR "drone strike" OR ' +
-      '"small drone" OR "commercial drone" OR sUAS OR quadcopter OR "drone warfare")' +
-      ' AND (military OR combat OR warfare OR Ukraine OR army OR battlefield)' +
+      '("FPV drone" OR "FPV attack" OR "FPV strike" OR "FPV drones" OR ' +
+      '"small drone" OR "small drones" OR "quadcopter" OR "commercial drone" OR ' +
+      '"modified drone" OR "off-the-shelf drone" OR "cheap drone" OR "hobby drone")' +
+      ' AND ' +
+      '(military OR combat OR warfare OR Ukraine OR army OR battlefield OR weapon OR "front line")' +
       ' when:7d';
 
+    // QUERY_B: sUAS capability, counter-drone, development
     var QUERY_B =
-      '("drone swarm" OR "counter-drone" OR "counter-UAS" OR "anti-drone" OR ' +
-      '"drone technology" OR "FPV" OR "small UAS" OR "unmanned aerial")' +
-      ' AND (military OR defense OR warfare OR weapon OR army)' +
+      '("FPV" OR "small UAS" OR sUAS OR "micro drone" OR "nano drone" OR ' +
+      '"commercial quadcopter" OR "DJI" OR "first-person view drone")' +
+      ' AND ' +
+      '(military OR defense OR army OR warfare OR weapon OR "counter-drone" OR "anti-drone")' +
       ' when:7d';
 
     var FEED_URL_A = 'https://news.google.com/rss/search?q=' + encodeURIComponent(QUERY_A);
     var FEED_URL_B = 'https://news.google.com/rss/search?q=' + encodeURIComponent(QUERY_B);
 
+    /*
+      Client-side blocklist — titles containing any of these are silently dropped.
+      Covers large UAS platforms, unrelated drone topics, and consumer fluff.
+    */
     var TITLE_BLOCKLIST = [
-      'shahed', 'tb-2', 'tb2', 'bayraktar', 'mq-9', 'reaper',
-      'wing loong', 'hale drone', 'male drone', 'cruise missile',
-      'ballistic missile', 'predator drone', 'global hawk',
-      'racing drone championship', 'drone light show', 'drone delivery pizza',
+      // Large Iranian/Russian one-way attack drones
+      'shahed', 'geran',
+      // Large Turkish / Chinese / US platforms
+      'tb2', 'tb-2', 'bayraktar', 'akinci', 'aksungur',
+      'mq-9', 'mq9', 'reaper', 'predator', 'global hawk',
+      'wing loong', 'ch-4', 'ch-5', 'pterodactyl',
+      'heron', 'hermes',
+      // Generic large-drone language
+      'hale drone', 'male drone', 'hale uav', 'male uav',
+      'long-range drone', 'strategic drone', 'loitering munition',
+      'cruise missile', 'ballistic missile',
+      // Unrelated civilian / consumer topics
+      'drone light show', 'drone show', 'drone delivery',
       'amazon drone', 'drone photography', 'drone racing league',
-      'consumer drone review', 'best drones to buy'
+      'drone racing championship', 'best drone', 'consumer drone',
+      'drone review', 'buy a drone', 'dji mini', 'dji air',
+      'dji mavic mini', 'drone footage', 'aerial photography',
+      'firefighting drone', 'agriculture drone', 'crop drone',
+      'medical drone', 'package delivery drone'
     ];
 
     function isTitleBlocked(title) {
@@ -232,7 +258,7 @@
     }
 
     /* ---------------- Cache ---------------- */
-    var CACHE_KEY = 'news_cache_v9_20260303';
+    var CACHE_KEY = 'news_cache_v10_20260303';
     var CACHE_TIME_KEY = CACHE_KEY + '_time';
     var CACHE_TTL_MS = 2 * 60 * 60 * 1000;
 

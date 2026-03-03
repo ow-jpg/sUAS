@@ -28,12 +28,8 @@
     .columns { display: flex; justify-content: space-between; gap: 2rem; }
     .column { flex: 1; min-width: 0; }
 
-    ul {
-      list-style: none;
-      padding: 0;
-      max-height: 500px;
-      overflow-y: auto;
-    }
+    /* Let lists grow with the page (no fixed 500px cap) */
+    ul { list-style: none; padding: 0; }
 
     li { margin-bottom: 1rem; }
 
@@ -46,6 +42,9 @@
       grid-template-columns: 1fr;
       gap: 0.8rem;
       padding-right: 0.25rem;
+      /* Ensure the news list itself doesn't clip; page scrolls instead */
+      max-height: none;
+      overflow: visible;
     }
 
     .card {
@@ -124,13 +123,29 @@
   </div>
 
   <script>
-    // ---------------- CONFIG: Query & Feed URL ----------------
-    // Filtered Google News query (small/FPV/commercial drones; exclude big platforms)
-    var FEED_URL =
-      'https://news.google.com/rss/search?q=' +
-      encodeURIComponent('(intitle:"FPV drone" OR intitle:"FPV attack" OR intitle:"FPV strike" OR "first person view drone" OR "commercial drone" OR "commercial quadcopter" OR "racing drone" OR "DIY drone" OR "improvised drone" OR "small drone" OR sUAS OR "small UAS" OR "quad" OR "DJI Mavic" OR "DJI FPV" OR "off-the-shelf drone" OR "COTS drone" OR "FPV munition" OR "loitering quadcopter") AND (drone OR sUAS OR UAS OR UAV OR quadcopter) AND (warfare OR combat OR attack OR strike OR battlefield OR military) NOT (shahed OR "shahed-136" OR "shahed 131" OR "suicide drone" OR "long-range drone" OR "ballistic" OR TB2 OR "Bayraktar" OR "Reaper" OR "MQ-9" OR "MALE UAV" OR "HALE UAV" OR "wing loong" OR "loyal wingman")');
+    /* ---------------- CONFIG: Query & Feed URL ----------------
+       This query targets small/FPV/commercial drones in warfare and excludes big platforms.
+       It also adds a recency window (last 30 days) to increase throughput.
+    */
+    var QUERY = [
+      '(' +
+        'intitle:FPV OR "FPV drone" OR "FPV attack" OR "FPV strike" OR ' +
+        'sUAS OR "small UAS" OR "small drone" OR "commercial drone" OR "commercial quadcopter" OR ' +
+        'quadcopter OR "DJI Mavic" OR "DJI FPV" OR "COTS drone" OR "off-the-shelf drone" OR "improvised drone" OR "racing drone"' +
+      ')' +
+      ' AND ' +
+      '(' +
+        'warfare OR combat OR attack OR strike OR battlefield OR military OR infantry OR "front-line"' +
+      ')' +
+      ' when:30d ' + // last 30 days for volume
+      // Exclude big drones / strategic systems
+      ' -shahed -"shahed-136" -"shahed 131" -TB2 -Bayraktar -MQ-9 -Reaper -"Wing Loong" -HALE -MALE -"long-range" -"cruise missile"'
+    ].join('');
 
-    // ---------------- Helpers ----------------
+    // Build the base Google News RSS URL (we’ll add edition params in proxies)
+    var FEED_URL = 'https://news.google.com/rss/search?q=' + encodeURIComponent(QUERY);
+
+    /* ---------------- Helpers ---------------- */
     function formatDate(dateStr) {
       try {
         var d = new Date(dateStr);
@@ -173,8 +188,8 @@
       return '';
     }
 
-    // ---------------- LocalStorage cache (versioned & URL-tied) ----------------
-    var CACHE_VERSION = 'v3_20260303';
+    /* ---------------- LocalStorage cache (versioned & URL‑tied) ---------------- */
+    var CACHE_VERSION = 'v5_20260303';
     var CACHE_BASE = 'news_cache_' + CACHE_VERSION + '_';
     var CACHE_KEY = CACHE_BASE + btoa(FEED_URL).slice(0, 16);
     var CACHE_TIME_KEY = CACHE_KEY + '_time';
@@ -199,6 +214,9 @@
       }
     }
 
+    /* ---------------- Normalized rendering ----------------
+       items: [{title, link, publication, author, pubDateISO}]
+    */
     function renderNormalizedItems(items, elementId, maxItems) {
       var list = document.getElementById(elementId);
       list.innerHTML = '';
@@ -234,11 +252,12 @@
       }
     }
 
-    // ---------------- Fetch via multiple proxies (XML path) ----------------
+    /* ---------------- Fetch via multiple proxies (XML path) ---------------- */
     function buildProxyUrls(feedUrl) {
-      // Region/language & cache-bust so proxies fetch fresh content
+      // Use a high‑volume edition by default to increase article count.
+      // Add cache‑buster so proxies fetch fresh content.
       var cacheBust = '&_=' + Date.now();
-      var augmented = feedUrl + '&hl=en-AU&gl=AU&ceid=AU:en' + cacheBust;
+      var augmented = feedUrl + '&hl=en&gl=US&ceid=US:en' + cacheBust; // broaden to US edition for throughput
       return [
         'https://cors.isomorphic-git.org/' + augmented,                                 // Proxy 1
         'https://corsproxy.io/?' + augmented,                                           // Proxy 2
@@ -258,24 +277,21 @@
           var err = xml.getElementsByTagName('parsererror');
           if (err && err.length) continue;
           return xml;
-        } catch (e) {
-          // try next proxy
-        }
+        } catch (e) { /* try next proxy */ }
       }
       throw new Error('All XML proxies failed');
     }
 
-    // ---------------- Fallback: rss2json ----------------
+    /* ---------------- Fallback: rss2json ---------------- */
     async function fetchRSSViaRss2Json(feedUrl, count) {
-      // Request up to 20, include the same region params & a cache-bust
       var url = 'https://api.rss2json.com/v1/api.json?count=' + (count || 20) +
-                '&rss_url=' + encodeURIComponent(feedUrl + '&hl=en-AU&gl=AU&ceid=AU:en&_=' + Date.now());
+                '&rss_url=' + encodeURIComponent(feedUrl + '&hl=en&gl=US&ceid=US:en&_=' + Date.now());
       var res = await fetch(url);
       if (!res.ok) throw new Error('rss2json HTTP ' + res.status);
       return await res.json();
     }
 
-    // ---------------- Normalize items from XML / JSON ----------------
+    /* ---------------- Normalize items from XML / JSON ---------------- */
     function itemsFromXml(xmlDoc, limit) {
       var out = [];
       var items = xmlDoc.getElementsByTagName('item');
@@ -338,11 +354,9 @@
       return out;
     }
 
-    // ---------------- Controller ----------------
+    /* ---------------- Controller ---------------- */
     async function loadNews() {
       var list = document.getElementById('feed2');
-
-      // Do NOT render stale cache first; we’ll fetch live, then fall back to cache.
       showStatus('Loading news…', false);
       list.innerHTML = '<li class="card" aria-busy="true" style="opacity:.8">Loading…</li>';
 

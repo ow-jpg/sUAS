@@ -353,9 +353,9 @@
         list.innerHTML = '<li class="card" aria-busy="true" style="opacity:.8">Loading…</li>';
       }
 
-      // Comprehensive search terms (your list)
-      var query = 'military sUAS use OR sUAS combat OR Armed sUAS OR Military FPV Drone OR FPV Drone attack OR FPV Drone strike OR Commercial drone attack OR commercial drone warfare OR sUAS warfare OR sUAS defence OR c-sUAS';
-      var feedUrl = 'https://news.google.com/rss/search?q=' + encodeURIComponent(query);
+      // *** FILTERED Google News RSS (encoded) ***
+      // Title-focused FPV/sUAS/commercial small drone warfare; excludes big drones (Shahed, MQ-9, TB2, etc.).
+      var feedUrl = 'https://news.google.com/rss/search?q=%28intitle%3A%22FPV%20drone%22%20OR%20intitle%3A%22FPV%20attack%22%20OR%20intitle%3A%22FPV%20strike%22%20OR%20%22first%20person%20view%20drone%22%20OR%20%22commercial%20drone%22%20OR%20%22commercial%20quadcopter%22%20OR%20%22racing%20drone%22%20OR%20%22DIY%20drone%22%20OR%20%22improvised%20drone%22%20OR%20%22small%20drone%22%20OR%20sUAS%20OR%20%22small%20UAS%22%20OR%20%22quad%22%20OR%20%22DJI%20Mavic%22%20OR%20%22DJI%20FPV%22%20OR%20%22off-the-shelf%20drone%22%20OR%20%22COTS%20drone%22%20OR%20%22FPV%20munition%22%20OR%20%22loitering%20quadcopter%22%29%20AND%20%28drone%20OR%20sUAS%20OR%20UAS%20OR%20UAV%20OR%20quadcopter%29%20AND%20%28warfare%20OR%20combat%20OR%20attack%20OR%20strike%20OR%20battlefield%20OR%20military%29%20NOT%20%28shahed%20OR%20%22shahed-136%22%20OR%20%22shahed%20131%22%20OR%20%22suicide%20drone%22%20OR%20%22long-range%20drone%22%20OR%20%22ballistic%22%20OR%20TB2%20OR%20%22Bayraktar%22%20OR%20%22Reaper%22%20OR%20%22MQ-9%22%20OR%20%22MALE%20UAV%22%20OR%20%22HALE%20UAV%22%20OR%20%22wing%20loong%22%20OR%20%22loyal%20wingman%22%29';
 
       try {
         // Preferred path: multiple CORS proxies fetching RAW RSS XML

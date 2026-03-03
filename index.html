@@ -15,10 +15,7 @@
 
     body { padding: 2rem; }
 
-    h1 {
-      font-size: 1.6rem;
-      margin-bottom: 2rem;
-    }
+    h1 { font-size: 1.6rem; margin-bottom: 2rem; }
 
     h2 {
       font-size: 1.1rem;
@@ -28,12 +25,7 @@
       text-transform: lowercase;
     }
 
-    .columns {
-      display: flex;
-      justify-content: space-between;
-      gap: 2rem;
-    }
-
+    .columns { display: flex; justify-content: space-between; gap: 2rem; }
     .column { flex: 1; min-width: 0; }
 
     ul {
@@ -89,21 +81,9 @@
       gap: 0.35rem;
     }
 
-    .meta .source {
-      color: #f1e9fa;                    /* publication line */
-      font-size: 0.9rem;
-      font-weight: 600;
-    }
-
-    .meta .author {
-      color: #e9dbf6;                    /* author line */
-      font-size: 0.88rem;
-    }
-
-    .meta .date {
-      color: #d9c8ee;                    /* date line */
-      font-size: 0.86rem;
-    }
+    .meta .source { color: #f1e9fa; font-size: 0.9rem; font-weight: 600; }
+    .meta .author { color: #e9dbf6; font-size: 0.88rem; }
+    .meta .date   { color: #d9c8ee; font-size: 0.86rem; }
 
     .status {
       color: #cfcfcf;
@@ -114,16 +94,9 @@
       margin: 0.25rem 0 1rem 0;
       font-size: 0.95rem;
     }
+    .status.error { border-color: #513333; background: #2a1e1e; color: #ffbcbc; }
 
-    .status.error {
-      border-color: #513333;
-      background: #2a1e1e;
-      color: #ffbcbc;
-    }
-
-    @media (max-width: 900px) {
-      .columns { flex-direction: column; }
-    }
+    @media (max-width: 900px) { .columns { flex-direction: column; } }
   </style>
 </head>
 <body>
@@ -196,33 +169,48 @@
       return '';
     }
 
-    // ---------------- RSS loader (prefers direct RSS via AllOrigins; falls back to rss2json) ----------------
-    async function fetchRSSXmlViaAllOrigins(feedUrl) {
-      // "raw" returns the raw RSS XML; avoids CORS issues
-      var url = 'https://api.allorigins.win/raw?url=' + encodeURIComponent(feedUrl);
-      var res = await fetch(url);
-      if (!res.ok) throw new Error('AllOrigins HTTP ' + res.status);
-      var xmlText = await res.text();
-      var parser = new DOMParser();
-      var xml = parser.parseFromString(xmlText, 'text/xml');
-      var parserErr = xml.getElementsByTagName('parsererror');
-      if (parserErr && parserErr.length) throw new Error('XML parse error');
-      return xml;
+    // -------- LocalStorage cache --------
+    var CACHE_KEY = 'news_cache_v1';
+    var CACHE_TIME_KEY = 'news_cache_time_v1';
+    var CACHE_TTL_MS = 6 * 60 * 60 * 1000; // 6 hours
+
+    function saveCache(items) {
+      try {
+        localStorage.setItem(CACHE_KEY, JSON.stringify(items || []));
+        localStorage.setItem(CACHE_TIME_KEY, String(Date.now()));
+      } catch (e) { /* ignore quota errors */ }
     }
 
-    async function fetchRSSViaRss2Json(feedUrl, count) {
-      var url = 'https://api.rss2json.com/v1/api.json?count=' + (count || 20) + '&rss_url=' + encodeURIComponent(feedUrl);
-      var res = await fetch(url);
-      if (!res.ok) throw new Error('rss2json HTTP ' + res.status);
-      return await res.json();
+    function loadCache() {
+      try {
+        var raw = localStorage.getItem(CACHE_KEY);
+        var when = parseInt(localStorage.getItem(CACHE_TIME_KEY) || '0', 10);
+        var items = raw ? JSON.parse(raw) : [];
+        var fresh = when && (Date.now() - when < CACHE_TTL_MS);
+        return { items: items, when: when, fresh: fresh };
+      } catch (e) {
+        return { items: [], when: 0, fresh: false };
+      }
     }
 
-    function renderNewsItemsFromXml(xmlDoc, elementId, maxItems) {
+    function renderFromCacheIfAvailable() {
+      var cache = loadCache();
+      if (cache.items && cache.items.length) {
+        renderNormalizedItems(cache.items, 'feed2', 20);
+        var whenDate = cache.when ? new Date(cache.when) : null;
+        var whenStr = whenDate ? whenDate.toLocaleString() : 'earlier';
+        showStatus('Showing cached news from ' + whenStr + '… updating in background.', false);
+        return true;
+      }
+      return false;
+    }
+
+    // -------- Normalized rendering --------
+    // items: [{title, link, publication, author, pubDateISO}]
+    function renderNormalizedItems(items, elementId, maxItems) {
       var list = document.getElementById(elementId);
       list.innerHTML = '';
-      var items = xmlDoc.getElementsByTagName('item');
       var n = Math.min(items.length, maxItems || 20);
-
       if (!n) {
         var emptyLi = document.createElement('li');
         emptyLi.className = 'card';
@@ -230,29 +218,13 @@
         list.appendChild(emptyLi);
         return;
       }
-
       for (var i = 0; i < n; i++) {
         var it = items[i];
-        var rawTitle = textOf(it, 'title') || 'Untitled';
-        var link = textOf(it, 'link') || '#';
-        var pubDate = textOf(it, 'pubDate');
-        var dateText = pubDate ? formatDate(pubDate) : null;
-
-        // Google News sometimes includes <source>Outlet</source>
-        var sourceNodes = it.getElementsByTagName('source');
-        var source = (sourceNodes && sourceNodes.length) ? (sourceNodes[0].textContent || '').trim() : '';
-
-        var split = splitTitle(rawTitle);
-        var displayTitle = split.headline || 'Untitled';
-
-        // Publication line priority: explicit <source> first, else part after hyphen/em dash
-        var publication = source || split.publication || '';
-
-        // Author: some items include <dc:creator>, <author>, etc.
-        var author = '';
-        var creators = it.getElementsByTagName('dc:creator');
-        if (creators && creators.length) author = (creators[0].textContent || '').trim();
-        if (!author) author = textOf(it, 'author'); // fallback if present
+        var displayTitle = it.title || 'Untitled';
+        var link = it.link || '#';
+        var publication = it.publication || '';
+        var author = it.author || '';
+        var dateText = it.pubDateISO ? formatDate(it.pubDateISO) : null;
 
         var li = document.createElement('li');
         li.className = 'card';
@@ -270,91 +242,161 @@
       }
     }
 
-    function renderNewsItemsFromRss2Json(json, elementId) {
-      var list = document.getElementById(elementId);
-      list.innerHTML = '';
-      var items = (json && json.items) ? json.items : [];
-      if (!items.length) {
-        var emptyLi = document.createElement('li');
-        emptyLi.className = 'card';
-        emptyLi.textContent = 'No items available right now.';
-        list.appendChild(emptyLi);
-        return;
+    // -------- Fetch via multiple proxies (XML path) --------
+    function buildProxyUrls(feedUrl) {
+      // Try with AU English edition params to improve consistency
+      var augmented = feedUrl + '&hl=en-AU&gl=AU&ceid=AU:en';
+      return [
+        'https://cors.isomorphic-git.org/' + augmented,          // Proxy 1
+        'https://corsproxy.io/?' + augmented,                     // Proxy 2
+        'https://api.allorigins.win/raw?url=' + encodeURIComponent(augmented) // Proxy 3
+      ];
+    }
+
+    async function tryFetchXMLWithProxies(feedUrl) {
+      var urls = buildProxyUrls(feedUrl);
+      for (var i = 0; i < urls.length; i++) {
+        try {
+          var res = await fetch(urls[i]);
+          if (!res.ok) continue;
+          var text = await res.text();
+          var parser = new DOMParser();
+          var xml = parser.parseFromString(text, 'text/xml');
+          var err = xml.getElementsByTagName('parsererror');
+          if (err && err.length) continue;
+          return xml;
+        } catch (e) {
+          // try next proxy
+        }
       }
+      throw new Error('All XML proxies failed');
+    }
 
-      var n = Math.min(items.length, 20);
+    // -------- Fallback: rss2json --------
+    async function fetchRSSViaRss2Json(feedUrl, count) {
+      // Request up to 20
+      var url = 'https://api.rss2json.com/v1/api.json?count=' + (count || 20) + '&rss_url=' + encodeURIComponent(feedUrl + '&hl=en-AU&gl=AU&ceid=AU:en');
+      var res = await fetch(url);
+      if (!res.ok) throw new Error('rss2json HTTP ' + res.status);
+      return await res.json();
+    }
 
+    // -------- Normalize items from XML / JSON --------
+    function itemsFromXml(xmlDoc, limit) {
+      var out = [];
+      var items = xmlDoc.getElementsByTagName('item');
+      var n = Math.min(items.length, limit || 20);
       for (var i = 0; i < n; i++) {
-        var item = items[i];
-        var rawTitle = item && item.title ? item.title : 'Untitled';
-        var link = item && item.link ? item.link : '#';
-        var dateText = (item && item.pubDate) ? formatDate(item.pubDate) : null;
+        var it = items[i];
+        var rawTitle = textOf(it, 'title') || 'Untitled';
+        var link = textOf(it, 'link') || '#';
+        var pubDate = textOf(it, 'pubDate') || '';
+
+        // Prefer explicit <source> for publication
+        var sourceNodes = it.getElementsByTagName('source');
+        var source = (sourceNodes && sourceNodes.length) ? (sourceNodes[0].textContent || '').trim() : '';
 
         var split = splitTitle(rawTitle);
-        var displayTitle = split.headline || 'Untitled';
-        var publication = (item && item.author) ? item.author : (split.publication || '');
-        var author = (item && item.author) ? item.author : '';
+        var headline = split.headline || 'Untitled';
+        var publication = source || split.publication || '';
 
-        var li = document.createElement('li');
-        li.className = 'card';
+        // Author variations (<dc:creator> or <author>)
+        var author = '';
+        var creators = it.getElementsByTagName('dc:creator');
+        if (creators && creators.length) author = (creators[0].textContent || '').trim();
+        if (!author) author = textOf(it, 'author');
 
-        var html = '';
-        html += '<a class="title" href="' + link + '" target="_blank" rel="noopener noreferrer">' + displayTitle + '</a>';
-        if (publication || author || dateText) {
-          html += '<div class="meta">';
-          if (publication) html += '<div class="source">' + publication + '</div>';
-          if (author) html += '<div class="author">' + author + '</div>';
-          if (dateText) html += '<div class="date">' + dateText + '</div>';
-          html += '</div>';
-        }
-
-        li.innerHTML = html;
-        list.appendChild(li);
+        out.push({
+          title: headline,
+          link: link,
+          publication: publication,
+          author: author,
+          pubDateISO: pubDate
+        });
       }
+      return out;
+    }
+
+    function itemsFromRss2Json(json, limit) {
+      var out = [];
+      var arr = (json && json.items) ? json.items : [];
+      var n = Math.min(arr.length, limit || 20);
+      for (var i = 0; i < n; i++) {
+        var it = arr[i];
+        var rawTitle = it && it.title ? it.title : 'Untitled';
+        var link = it && it.link ? it.link : '#';
+        var pubDateISO = (it && it.pubDate) ? it.pubDate : '';
+
+        var split = splitTitle(rawTitle);
+        var headline = split.headline || 'Untitled';
+        // rss2json often maps outlet → author; use it for publication if available
+        var publication = (it && it.author) ? it.author : (split.publication || '');
+        var author = (it && it.author) ? it.author : '';
+
+        out.push({
+          title: headline,
+          link: link,
+          publication: publication,
+          author: author,
+          pubDateISO: pubDateISO
+        });
+      }
+      return out;
     }
 
     // ---------------- Controller ----------------
     async function loadNews() {
       var list = document.getElementById('feed2');
-      showStatus('Loading news…', false);
-      list.innerHTML = '<li class="card" aria-busy="true" style="opacity:.8">Loading…</li>';
+      var showedCache = renderFromCacheIfAvailable(); // show cache immediately if we have it
+      if (!showedCache) {
+        showStatus('Loading news…', false);
+        list.innerHTML = '<li class="card" aria-busy="true" style="opacity:.8">Loading…</li>';
+      }
 
-      // Updated Google News RSS query with the comprehensive terms
-      var feedUrl =
-        'https://news.google.com/rss/search?q=' +
-        encodeURIComponent('military sUAS use OR sUAS combat OR Armed sUAS OR Military FPV Drone OR FPV Drone attack OR FPV Drone strike OR Commercial drone attack OR commercial drone warfare OR sUAS warfare OR sUAS defence OR c-sUAS');
+      // Comprehensive search terms (your list)
+      var query = 'military sUAS use OR sUAS combat OR Armed sUAS OR Military FPV Drone OR FPV Drone attack OR FPV Drone strike OR Commercial drone attack OR commercial drone warfare OR sUAS warfare OR sUAS defence OR c-sUAS';
+      var feedUrl = 'https://news.google.com/rss/search?q=' + encodeURIComponent(query);
 
       try {
-        // Preferred path: raw RSS via AllOrigins
-        var xml = await fetchRSSXmlViaAllOrigins(feedUrl);
-        renderNewsItemsFromXml(xml, 'feed2', 20);
-        showStatus('', false); // hide status
+        // Preferred path: multiple CORS proxies fetching RAW RSS XML
+        var xml = await tryFetchXMLWithProxies(feedUrl);
+        var items = itemsFromXml(xml, 20);
+        saveCache(items);
+        renderNormalizedItems(items, 'feed2', 20);
+        showStatus('', false); // hide
       } catch (e1) {
-        console.warn('AllOrigins path failed, trying rss2json fallback:', e1);
+        console.warn('XML proxy path failed, trying rss2json fallback:', e1);
         try {
-          // Fallback path: rss2json with count=20
           var json = await fetchRSSViaRss2Json(feedUrl, 20);
-          renderNewsItemsFromRss2Json(json, 'feed2');
+          var itemsJ = itemsFromRss2Json(json, 20);
+          saveCache(itemsJ);
+          renderNormalizedItems(itemsJ, 'feed2', 20);
           showStatus('', false);
         } catch (e2) {
           console.error('rss2json fallback failed:', e2);
-          list.innerHTML = '';
-          var li = document.createElement('li');
-          li.className = 'card';
-          li.textContent = 'Could not load feed. Try again later.';
-          list.appendChild(li);
-          showStatus('Could not load news (network issue or rate limiting). Will retry automatically.', true);
+          // If we showed cache, keep it and show error banner; otherwise show a card error.
+          if (showedCache) {
+            showStatus('Could not load fresh news (network/proxy issue). Showing cached results.', true);
+          } else {
+            list.innerHTML = '';
+            var li = document.createElement('li');
+            li.className = 'card';
+            li.textContent = 'Could not load feed. Try again later.';
+            list.appendChild(li);
+            showStatus('Could not load news (network issue or rate limiting). Will retry automatically.', true);
+          }
         }
       }
     }
 
     function refreshFeeds() {
       loadNews();
-      // When you add these, call loadRSS for them similarly:
+      // When you add these, implement loaders similarly:
       // loadSocial();
       // loadAcademia();
     }
 
+    // Initial load + periodic refresh
     refreshFeeds(); // initial load
     setInterval(refreshFeeds, 300000); // every 5 minutes
   </script>

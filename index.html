@@ -133,65 +133,105 @@
 
   <script>
     /*
-      Both queries REQUIRE a small/FPV-specific term in the title.
-      The AND structure means Google must match a small-drone term
-      AND a military/conflict term — reducing large-platform bleed.
+      FEED SOURCES
+      ────────────
+      Google News (2 broad queries, small-drone focused)
+        A — FPV / small drone combat & battlefield use
+        B — sUAS capability, counter-drone, military tech
 
-      Client-side blocklist catches anything that still slips through.
+      Direct feeds — all filtered client-side by TITLE_REQUIRE_TERMS
+      (only articles containing a small-drone keyword are kept):
+        C  Ukrinform          https://www.ukrinform.net/rss/block-lastnews
+        D  United24 Media     https://united24media.com/feed
+        E  Reuters World      https://feeds.reuters.com/reuters/worldNews
+        F  Kyiv Independent   https://kyivindependent.com/feed/
+        G  The War Zone (TWZ) https://twz.com/feed
+        H  Defense News UAS   https://www.defensenews.com/arc/outboundfeeds/rss/category/unmanned/?outputType=xml
+        I  DroneXL            https://dronexl.co/feed
+        J  Dronefare          https://dronefare.substack.com/feed  (no filter — 100% drone warfare content)
+        K  sUAS News          https://www.suasnews.com/feed        (no filter — 100% sUAS content)
+        L  Covert Shores      https://www.covertshores.com/feeds/posts/default
+
+      Filtering strategy:
+        • Google News feeds: no extra require filter (query already constrains topics)
+        • Specialist drone/warfare feeds (Dronefare, sUAS News): no require filter
+        • All other direct feeds: require at least one TITLE_REQUIRE_TERM
+        • All feeds: TITLE_BLOCKLIST removes large-platform / off-topic articles
     */
 
-    // QUERY_A: FPV & small drone combat use
+    // ── Google News queries ───────────────────────────────────────────────────
     var QUERY_A =
       '("FPV drone" OR "FPV attack" OR "FPV strike" OR "FPV drones" OR ' +
       '"small drone" OR "small drones" OR "quadcopter" OR "commercial drone" OR ' +
-      '"modified drone" OR "off-the-shelf drone" OR "cheap drone" OR "hobby drone")' +
-      ' AND ' +
-      '(military OR combat OR warfare OR Ukraine OR army OR battlefield OR weapon OR "front line")' +
+      '"modified drone" OR "off-the-shelf drone" OR "cheap drone")' +
+      ' AND (military OR combat OR warfare OR Ukraine OR army OR battlefield OR weapon)' +
       ' when:7d';
 
-    // QUERY_B: sUAS capability, counter-drone, development
     var QUERY_B =
       '("FPV" OR "small UAS" OR sUAS OR "micro drone" OR "nano drone" OR ' +
       '"commercial quadcopter" OR "DJI" OR "first-person view drone")' +
-      ' AND ' +
-      '(military OR defense OR army OR warfare OR weapon OR "counter-drone" OR "anti-drone")' +
+      ' AND (military OR defense OR army OR warfare OR weapon OR "counter-drone" OR "anti-drone")' +
       ' when:7d';
 
     var FEED_URL_A = 'https://news.google.com/rss/search?q=' + encodeURIComponent(QUERY_A);
     var FEED_URL_B = 'https://news.google.com/rss/search?q=' + encodeURIComponent(QUERY_B);
 
-    /*
-      Client-side blocklist — titles containing any of these are silently dropped.
-      Covers large UAS platforms, unrelated drone topics, and consumer fluff.
-    */
+    // ── Direct feeds ─────────────────────────────────────────────────────────
+    var DIRECT_FEEDS = [
+      { url: 'https://www.ukrinform.net/rss/block-lastnews',                                             pub: 'Ukrinform',          requireFilter: true  },
+      { url: 'https://united24media.com/feed',                                                           pub: 'United24 Media',     requireFilter: true  },
+      { url: 'https://feeds.reuters.com/reuters/worldNews',                                              pub: 'Reuters',            requireFilter: true  },
+      { url: 'https://kyivindependent.com/feed/',                                                        pub: 'Kyiv Independent',   requireFilter: true  },
+      { url: 'https://twz.com/feed',                                                                     pub: 'The War Zone',       requireFilter: true  },
+      { url: 'https://www.defensenews.com/arc/outboundfeeds/rss/category/unmanned/?outputType=xml',      pub: 'Defense News',       requireFilter: false },
+      { url: 'https://dronexl.co/feed',                                                                  pub: 'DroneXL',            requireFilter: true  },
+      { url: 'https://dronefare.substack.com/feed',                                                      pub: 'Dronefare',          requireFilter: false },
+      { url: 'https://www.suasnews.com/feed',                                                            pub: 'sUAS News',          requireFilter: false },
+      { url: 'https://www.covertshores.com/feeds/posts/default',                                         pub: 'Covert Shores',      requireFilter: true  }
+    ];
+
+    // ── Client-side require filter (direct feeds with requireFilter:true) ────
+    // Article must contain at least one of these to be kept
+    var TITLE_REQUIRE_TERMS = [
+      'fpv', 'small drone', 'small drones', 'quadcopter', 'commercial drone',
+      'suas', 'micro drone', 'nano drone', 'drone swarm', 'first-person view',
+      'hobby drone', 'modified drone', 'dji', 'fpv attack', 'fpv strike',
+      'fpv drone', 'drone warfare', 'drone strike', 'counter-drone', 'anti-drone',
+      'counter-uas', 'drone unit', 'drone crew', 'drone pilot', 'drone operator',
+      'unmanned aerial', 'uncrewed', 'drone attack', 'drone kamikaze'
+    ];
+
+    // ── Client-side blocklist (all feeds) ────────────────────────────────────
     var TITLE_BLOCKLIST = [
-      // Large Iranian/Russian one-way attack drones
       'shahed', 'geran',
-      // Large Turkish / Chinese / US platforms
       'tb2', 'tb-2', 'bayraktar', 'akinci', 'aksungur',
-      'mq-9', 'mq9', 'reaper', 'predator', 'global hawk',
+      'mq-9', 'mq9', 'reaper', 'predator drone', 'global hawk',
       'wing loong', 'ch-4', 'ch-5', 'pterodactyl',
-      'heron', 'hermes',
-      // Generic large-drone language
+      'heron', 'hermes', 'watchkeeper',
       'hale drone', 'male drone', 'hale uav', 'male uav',
-      'long-range drone', 'strategic drone', 'loitering munition',
-      'cruise missile', 'ballistic missile',
-      // Unrelated civilian / consumer topics
-      'drone light show', 'drone show', 'drone delivery',
+      'long-range drone', 'strategic drone',
+      'cruise missile', 'ballistic missile', 'glide bomb',
+      'drone light show', 'drone show',
       'amazon drone', 'drone photography', 'drone racing league',
       'drone racing championship', 'best drone', 'consumer drone',
-      'drone review', 'buy a drone', 'dji mini', 'dji air',
-      'dji mavic mini', 'drone footage', 'aerial photography',
-      'firefighting drone', 'agriculture drone', 'crop drone',
-      'medical drone', 'package delivery drone'
+      'drone review', 'dji mini', 'dji air 3', 'dji mavic mini',
+      'aerial photography', 'firefighting drone',
+      'agriculture drone', 'crop drone', 'medical drone',
+      'package delivery', 'postal drone', 'delivery drone',
+      'drone footage', 'cinematic drone'
     ];
 
     function isTitleBlocked(title) {
       var lower = (title || '').toLowerCase();
-      return TITLE_BLOCKLIST.some(function(term) { return lower.indexOf(term) !== -1; });
+      return TITLE_BLOCKLIST.some(function(t) { return lower.indexOf(t) !== -1; });
     }
 
-    /* ---------------- Helpers ---------------- */
+    function titlePassesRequire(title) {
+      var lower = (title || '').toLowerCase();
+      return TITLE_REQUIRE_TERMS.some(function(t) { return lower.indexOf(t) !== -1; });
+    }
+
+    // ── Helpers ───────────────────────────────────────────────────────────────
     function formatDate(dateStr) {
       try {
         var d = new Date(dateStr);
@@ -222,7 +262,7 @@
       return (els && els.length) ? (els[0].textContent || '').trim() : '';
     }
 
-    /* ---------------- Deduplication ---------------- */
+    // ── Deduplication (link + Jaccard title similarity) ───────────────────────
     var STOPWORDS = {
       a:1,an:1,the:1,in:1,on:1,at:1,to:1,of:1,and:1,or:1,for:1,
       is:1,are:1,was:1,were:1,its:1,it:1,as:1,by:1,with:1,from:1,
@@ -257,8 +297,8 @@
       return out;
     }
 
-    /* ---------------- Cache ---------------- */
-    var CACHE_KEY = 'news_cache_v10_20260303';
+    // ── Cache ─────────────────────────────────────────────────────────────────
+    var CACHE_KEY = 'news_cache_v12_20260303';
     var CACHE_TIME_KEY = CACHE_KEY + '_time';
     var CACHE_TTL_MS = 2 * 60 * 60 * 1000;
 
@@ -274,7 +314,7 @@
       } catch (e) { return { items: [], when: 0, fresh: false }; }
     }
 
-    /* ---------------- Sort & render ---------------- */
+    // ── Sort & render ─────────────────────────────────────────────────────────
     function sortDesc(items) {
       return (items || []).slice().sort(function(a, b) {
         return new Date(b.pubDateISO || 0) - new Date(a.pubDateISO || 0);
@@ -312,9 +352,10 @@
       }
     }
 
-    /* ---------------- Proxy fetch ---------------- */
+    // ── Proxy fetch ───────────────────────────────────────────────────────────
     function buildProxyUrls(feedUrl) {
-      var aug = feedUrl + '&hl=en&gl=US&ceid=US:en&_=' + Date.now();
+      var sep = feedUrl.indexOf('?') === -1 ? '?' : '&';
+      var aug = feedUrl + sep + '_=' + Date.now();
       return [
         'https://cors.isomorphic-git.org/' + aug,
         'https://corsproxy.io/?' + aug,
@@ -333,18 +374,21 @@
           return xml;
         } catch (e) {}
       }
-      throw new Error('All XML proxies failed');
+      throw new Error('All XML proxies failed for ' + feedUrl);
     }
 
     async function fetchRss2Json(feedUrl, count) {
+      var sep = feedUrl.indexOf('?') === -1 ? '?' : '&';
       var url = 'https://api.rss2json.com/v1/api.json?count=' + (count || 50) +
-                '&rss_url=' + encodeURIComponent(feedUrl + '&hl=en&gl=US&ceid=US:en&_=' + Date.now());
+                '&rss_url=' + encodeURIComponent(feedUrl + sep + '_=' + Date.now());
       var res = await fetch(url);
       if (!res.ok) throw new Error('rss2json HTTP ' + res.status);
       return res.json();
     }
 
-    function itemsFromXml(xmlDoc, limit) {
+    // ── Normalise ─────────────────────────────────────────────────────────────
+    function itemsFromXml(xmlDoc, limit, opts) {
+      opts = opts || {};
       var out = [], items = xmlDoc.getElementsByTagName('item');
       var n = Math.min(items.length, limit || 50);
       for (var i = 0; i < n; i++) {
@@ -357,40 +401,81 @@
         var creators = it.getElementsByTagName('dc:creator');
         if (creators.length) author = (creators[0].textContent || '').trim();
         if (!author) author = textOf(it, 'author');
-        out.push({ title: split.headline || 'Untitled', link: textOf(it, 'link') || '#', publication: source || split.publication || '', author: author, pubDateISO: textOf(it, 'pubDate') || '' });
+        var item = {
+          title: split.headline || 'Untitled',
+          link: textOf(it, 'link') || '#',
+          publication: opts.pub || source || split.publication || '',
+          author: author,
+          pubDateISO: textOf(it, 'pubDate') || ''
+        };
+        if (opts.requireFilter && !titlePassesRequire(item.title)) continue;
+        out.push(item);
       }
       return out;
     }
 
-    function itemsFromRss2Json(json, limit) {
+    function itemsFromRss2Json(json, limit, opts) {
+      opts = opts || {};
       var out = [], arr = (json && json.items) || [];
       var n = Math.min(arr.length, limit || 50);
       for (var i = 0; i < n; i++) {
         var it = arr[i] || {};
         var split = splitTitle(it.title || '');
-        out.push({ title: split.headline || 'Untitled', link: it.link || '#', publication: it.author || split.publication || '', author: it.author || '', pubDateISO: it.pubDate || '' });
+        var item = {
+          title: split.headline || 'Untitled',
+          link: it.link || '#',
+          publication: opts.pub || it.author || split.publication || '',
+          author: it.author || '',
+          pubDateISO: it.pubDate || ''
+        };
+        if (opts.requireFilter && !titlePassesRequire(item.title)) continue;
+        out.push(item);
       }
       return out;
     }
 
-    async function fetchOneFeed(feedUrl) {
-      try { return itemsFromXml(await tryFetchXML(feedUrl), 50); }
-      catch (e) {
-        console.warn('XML failed, falling back to rss2json:', e);
-        return itemsFromRss2Json(await fetchRss2Json(feedUrl, 50), 50);
+    // ── Fetch one feed (XML → rss2json fallback) ──────────────────────────────
+    async function fetchOneFeed(feedUrl, opts) {
+      opts = opts || {};
+      var augUrl = (feedUrl.indexOf('news.google.com') !== -1)
+        ? feedUrl + '&hl=en&gl=US&ceid=US:en'
+        : feedUrl;
+
+      try {
+        return itemsFromXml(await tryFetchXML(augUrl), 50, opts);
+      } catch (e) {
+        console.warn('XML failed for', feedUrl, '— trying rss2json');
+        try {
+          return itemsFromRss2Json(await fetchRss2Json(augUrl, 50), 50, opts);
+        } catch (e2) {
+          console.warn('Both methods failed for', feedUrl);
+          return [];
+        }
       }
     }
 
+    // ── Controller ────────────────────────────────────────────────────────────
     async function loadNews() {
       var list = document.getElementById('feed2');
       showStatus('Loading news…', false);
       list.innerHTML = '<li class="card" style="opacity:.8">Loading…</li>';
 
       try {
-        var results = await Promise.allSettled([fetchOneFeed(FEED_URL_A), fetchOneFeed(FEED_URL_B)]);
+        // Build all fetch promises: 2 Google News + all direct feeds
+        var fetchPromises = [
+          fetchOneFeed(FEED_URL_A, {}),
+          fetchOneFeed(FEED_URL_B, {})
+        ];
+        DIRECT_FEEDS.forEach(function(f) {
+          fetchPromises.push(fetchOneFeed(f.url, { pub: f.pub, requireFilter: f.requireFilter }));
+        });
+
+        var results = await Promise.allSettled(fetchPromises);
         var combined = [];
         results.forEach(function(r) { if (r.status === 'fulfilled') combined = combined.concat(r.value); });
-        if (!combined.length) throw new Error('Both feeds returned no items');
+
+        if (!combined.length) throw new Error('All feeds returned no items');
+
         saveCache(combined);
         renderItems(combined, 'feed2', 20);
         showStatus('', false);

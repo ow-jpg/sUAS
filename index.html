@@ -70,11 +70,12 @@
     }
 
     .card {
-      background: #4B365F;              /* <-- YOUR COLOR */
+      background: #4B365F;              /* your color */
       border: 1px solid #3d2c4e;        /* slightly darker border for definition */
       border-radius: 10px;
       padding: 0.9rem 1rem;
       transition: transform 0.12s ease, box-shadow 0.12s ease, border-color 0.2s ease;
+      text-align: center;               /* center all content in the card */
     }
 
     .card:hover {
@@ -96,16 +97,27 @@
     }
 
     .card .meta {
-      margin-top: 0.45rem;               /* puts source/date on a separate line under title */
-      color: #e9dbf6;                    /* light lilac for secondary text */
-      font-size: 0.86rem;
+      margin-top: 0.55rem;
       display: flex;
-      gap: 0.6rem;
-      flex-wrap: wrap;
+      flex-direction: column;            /* stack lines: source, author, date */
+      align-items: center;
+      gap: 0.35rem;
     }
 
-    .card .dot {
-      opacity: 0.7;
+    .card .meta .source {
+      color: #f1e9fa;                    /* publication line */
+      font-size: 0.9rem;
+      font-weight: 600;
+    }
+
+    .card .meta .author {
+      color: #e9dbf6;                    /* author line */
+      font-size: 0.88rem;
+    }
+
+    .card .meta .date {
+      color: #d9c8ee;                    /* date line (under all) */
+      font-size: 0.86rem;
     }
 
     /* Simple inline status message style */
@@ -177,6 +189,27 @@
       el.style.display = message ? 'block' : 'none';
     }
 
+    // Try to infer publication from the title if item.author is missing.
+    // Google News often formats as "Headline - Outlet" or "Headline — Outlet".
+    function inferPublicationFromTitle(title) {
+      if (!title) return '';
+      var pub = '';
+      // em dash
+      var emDashIndex = title.lastIndexOf(' — ');
+      if (emDashIndex !== -1 && emDashIndex + 3 < title.length) {
+        pub = title.slice(emDashIndex + 3).trim();
+      } else {
+        // hyphen
+        var hyphenIndex = title.lastIndexOf(' - ');
+        if (hyphenIndex !== -1 && hyphenIndex + 3 < title.length) {
+          pub = title.slice(hyphenIndex + 3).trim();
+        }
+      }
+      // Basic sanity check so we don't show the full title as a "publication"
+      if (pub && pub.length >= 2 && pub.length <= 60) return pub;
+      return '';
+    }
+
     // --------- Core feed loader ---------
     async function loadRSS(feedUrl, elementId) {
       var proxy = "https://api.rss2json.com/v1/api.json?rss_url=";
@@ -215,24 +248,30 @@
           var title = item && item.title ? item.title : 'Untitled';
           var link = item && item.link ? item.link : '#';
           var author = (item && item.author) ? item.author : ''; // Do not show feed title
+          var publication = author || inferPublicationFromTitle(title); // Prefer author as "source" if present
           var dateText = (item && item.pubDate) ? formatDate(item.pubDate) : null;
 
           if (isNews) {
             li.className = 'card';
 
-            // Title (first line)
-            var html = '<a class="title" href="' + link + '" target="_blank" rel="noopener noreferrer">' + title + '</a>';
+            var html = '';
+            // Title (top, centered)
+            html += '<a class="title" href="' + link + '" target="_blank" rel="noopener noreferrer">' + title + '</a>';
 
-            // Source/Author on its own line; include date if available. If both absent, no meta row.
-            if (author || dateText) {
-              html += '<div class="meta">';
-              if (author) html += '<span>' + author + '</span>';
-              if (author && dateText) html += '<span class="dot">•</span>';
-              if (dateText) html += '<span>' + dateText + '</span>';
-              html += '</div>';
+            // Second line: publication (if we can infer/find one)
+            // Third line: author (only if present AND distinct from publication)
+            // Fourth line: date (if present)
+            html += '<div class="meta">';
+            if (publication) {
+              html += '<div class="source">' + publication + '</div>';
             }
-
-            // No excerpt/body text
+            if (author && author !== publication) {
+              html += '<div class="author">' + author + '</div>';
+            }
+            if (dateText) {
+              html += '<div class="date">' + dateText + '</div>';
+            }
+            html += '</div>';
 
             li.innerHTML = html;
           } else {
@@ -259,7 +298,7 @@
 
     // --------- Configure & refresh ---------
     // Google News RSS query
-    var newsFeed = "https://news.google.com/rss/search?q=sUAS+military+operations+OR+armed+drones";
+    var newsFeed = "https://news.google.com/rss/search?q=sUAS+OR+armed+drones+OR+drone+warfare";
 
     function refreshFeeds() {
       loadRSS(newsFeed, "feed2");

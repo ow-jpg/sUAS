@@ -39,8 +39,8 @@
       max-height: 520px;
       overflow-y: auto;
       padding-right: 6px;
-      -webkit-mask-image: linear-gradient(to bottom, black 97%, transparent 100%);
-      mask-image: linear-gradient(to bottom, black 97%, transparent 100%);
+      -webkit-mask-image: linear-gradient(to bottom, black 99%, transparent 100%);
+      mask-image: linear-gradient(to bottom, black 99%, transparent 100%);
     }
 
     .scroll-wrap::-webkit-scrollbar { width: 5px; }
@@ -522,87 +522,40 @@
       }, 1500);
     }
 
-    /* ── Academia: Semantic Scholar API + arXiv RSS ───────────────────────────
-       Semantic Scholar /graph/v1/paper/search — free, no key, returns JSON
-       arXiv Atom RSS — direct fetch via proxy, very reliable
+    /* ── Academia: arXiv API ────────────────────────────────────────────────
+       arXiv export API supports CORS and needs no key or proxy.
+       Three queries: FPV/small drone combat, sUAS military, counter-UAS.
     */
-
-    // Semantic Scholar: three targeted queries
-    var SS_QUERIES = [
-      { q: 'FPV drone warfare military combat Ukraine',        label: 'Semantic Scholar' },
-      { q: 'small UAS sUAS quadcopter military battlefield',   label: 'Semantic Scholar' },
-      { q: 'counter-UAS anti-drone small unmanned defense',    label: 'Semantic Scholar' }
-    ];
-
-    // arXiv RSS searches — use search_query param (ti+abs search)
     var ARXIV_QUERIES = [
-      { q: 'ti:drone+AND+ti:military+OR+ti:warfare+OR+ti:combat',         label: 'arXiv' },
-      { q: 'ti:UAS+AND+ti:military+OR+abs:counter-drone+abs:small+UAS',   label: 'arXiv' }
+      { q: 'all:FPV drone military OR all:small drone warfare OR all:quadcopter combat' },
+      { q: 'all:sUAS military OR all:small UAS battlefield OR all:unmanned aerial vehicle warfare' },
+      { q: 'all:counter-UAS OR all:counter drone defense OR all:anti-drone military' }
     ];
-
-    async function fetchSemanticScholar(queryObj) {
-      var url = 'https://api.semanticscholar.org/graph/v1/paper/search?' +
-        'query=' + encodeURIComponent(queryObj.q) +
-        '&fields=title,authors,year,externalIds,publicationDate,journal,venue' +
-        '&limit=15';
-      try {
-        var res = await fetch(url);
-        if (!res.ok) throw new Error('SS ' + res.status);
-        var json = await res.json();
-        var out = [];
-        ((json && json.data) || []).forEach(function(p) {
-          if (!p || !p.title) return;
-          var paperId = p.paperId || '';
-          var link = paperId ? 'https://www.semanticscholar.org/paper/' + paperId : '#';
-          // Prefer DOI link if available
-          if (p.externalIds && p.externalIds.DOI) {
-            link = 'https://doi.org/' + p.externalIds.DOI;
-          } else if (p.externalIds && p.externalIds.ArXiv) {
-            link = 'https://arxiv.org/abs/' + p.externalIds.ArXiv;
-          }
-          var authors = '';
-          if (p.authors && p.authors.length) {
-            authors = p.authors.slice(0, 3).map(function(a){ return a.name; }).join(', ');
-            if (p.authors.length > 3) authors += ' et al.';
-          }
-          var venue = (p.journal && p.journal.name) || p.venue || queryObj.label;
-          var pubDate = p.publicationDate || (p.year ? String(p.year) : '');
-          out.push({ title: p.title, link: link, publication: venue, author: authors, pubDateISO: pubDate });
-        });
-        return out;
-      } catch(e) {
-        console.warn('Semantic Scholar failed:', queryObj.q, e);
-        return [];
-      }
-    }
 
     async function fetchArxiv(queryObj) {
       var baseUrl = 'https://export.arxiv.org/api/query?' +
         'search_query=' + encodeURIComponent(queryObj.q) +
-        '&start=0&max_results=10&sortBy=submittedDate&sortOrder=descending';
-      // Try direct first (arXiv allows CORS), then proxy fallback
+        '&start=0&max_results=12&sortBy=submittedDate&sortOrder=descending';
       var urls = [
         baseUrl,
-        'https://api.allorigins.win/raw?url=' + encodeURIComponent(baseUrl + '&_=' + Date.now())
+        'https://corsproxy.io/?' + baseUrl,
+        'https://api.allorigins.win/raw?url=' + encodeURIComponent(baseUrl)
       ];
       for (var i = 0; i < urls.length; i++) {
         try {
           var res = await fetch(urls[i]);
           if (!res.ok) continue;
-          var xml = new DOMParser().parseFromString(await res.text(), 'application/xml');
+          var xml = new DOMParser().parseFromString(await res.text(), 'text/xml');
           if (xml.getElementsByTagName('parsererror').length) continue;
           var entries = xml.getElementsByTagName('entry');
+          if (!entries.length) continue;
           var out = [];
           for (var j = 0; j < entries.length; j++) {
             var entry = entries[j];
-            var title = textOf(entry, 'title').replace(/\s+/g, ' ').trim();
-            if (!title || title === 'Error') continue;
-
-            // arXiv link
-            var linkEl = entry.getElementsByTagName('id')[0];
-            var link = linkEl ? (linkEl.textContent || '#').trim() : '#';
-
-            // Authors
+            var title = (textOf(entry, 'title') || '').replace(/\s+/g, ' ').trim();
+            if (!title || title.toLowerCase() === 'error') continue;
+            var idEl = entry.getElementsByTagName('id')[0];
+            var link = idEl ? (idEl.textContent || '').trim() : '#';
             var authorEls = entry.getElementsByTagName('author');
             var authorNames = [];
             for (var k = 0; k < Math.min(authorEls.length, 3); k++) {
@@ -610,15 +563,13 @@
               if (nameEl) authorNames.push(nameEl.textContent.trim());
             }
             if (authorEls.length > 3) authorNames.push('et al.');
-
             var pubDate = textOf(entry, 'published') || textOf(entry, 'updated') || '';
-
             out.push({ title: title, link: link, publication: 'arXiv', author: authorNames.join(', '), pubDateISO: pubDate });
           }
           return out;
         } catch(e) {}
       }
-      console.warn('arXiv failed for:', queryObj.q);
+      console.warn('arXiv: all URLs failed for:', queryObj.q);
       return [];
     }
 
@@ -628,7 +579,7 @@
       var ordered = sortDesc(dedupeItems(items || []));
       var n = Math.min(ordered.length, 20);
       if (!n) {
-        list.innerHTML = '<li class="card academia-card">No papers found.</li>';
+        list.innerHTML = '<li class="card academia-card">No papers found. <a href="https://arxiv.org/search/?searchtype=all&query=drone+military+warfare" target="_blank" rel="noopener noreferrer">Search arXiv ↗</a></li>';
         return;
       }
       for (var i = 0; i < n; i++) {
@@ -654,8 +605,7 @@
       if (cache.items && cache.items.length) { allAcadItems = cache.items; renderAcademia(allAcadItems); }
       else { document.getElementById('feed3').innerHTML = '<li class="card academia-card" style="opacity:.6">Loading…</li>'; }
 
-      var promises = SS_QUERIES.map(fetchSemanticScholar).concat(ARXIV_QUERIES.map(fetchArxiv));
-      var results = await Promise.allSettled(promises);
+      var results = await Promise.allSettled(ARXIV_QUERIES.map(fetchArxiv));
       var combined = [];
       results.forEach(function(r){ if (r.status==='fulfilled') combined = combined.concat(r.value); });
 
@@ -667,8 +617,8 @@
       } else if (!allAcadItems.length) {
         document.getElementById('feed3').innerHTML =
           '<li class="card academia-card">Could not load papers. ' +
-          '<a href="https://www.semanticscholar.org/search?q=sUAS+military+warfare&sort=Relevance" target="_blank" rel="noopener noreferrer">Search Semantic Scholar ↗</a></li>';
-        showStatus('Could not load academic papers.', true, 'academia-status');
+          '<a href="https://arxiv.org/search/?searchtype=all&query=drone+military+warfare" target="_blank" rel="noopener noreferrer">Search arXiv ↗</a></li>';
+        showStatus('arXiv unavailable — try again shortly.', true, 'academia-status');
       }
     }
 

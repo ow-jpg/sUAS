@@ -28,7 +28,6 @@
     .columns { display: flex; justify-content: space-between; gap: 2rem; }
     .column { flex: 1; min-width: 0; }
 
-    /* Let lists grow with the page (no fixed cap) */
     ul { list-style: none; padding: 0; }
     li { margin-bottom: 1rem; }
 
@@ -46,23 +45,23 @@
     }
 
     .card {
-      background: #4B365F;              /* your color */
-      border: 1px solid #3d2c4e;        /* slightly darker border for definition */
+      background: #4B365F;
+      border: 1px solid #3d2c4e;
       border-radius: 10px;
       padding: 0.9rem 1rem;
       transition: transform 0.12s ease, box-shadow 0.12s ease, border-color 0.2s ease;
-      text-align: center;               /* center all content in the card */
+      text-align: center;
     }
 
     .card:hover {
       transform: translateY(-1px);
       box-shadow: 0 6px 14px rgba(0, 0, 0, 0.35);
-      border-color: #5a4370;            /* subtle highlight on hover */
+      border-color: #5a4370;
     }
 
     .card a.title {
       display: inline-block;
-      color: #ffffff;                    /* strong contrast on purple */
+      color: #ffffff;
       font-weight: 700;
       text-decoration: none;
       line-height: 1.35;
@@ -73,7 +72,7 @@
     .meta {
       margin-top: 0.55rem;
       display: flex;
-      flex-direction: column;            /* publication, author, date */
+      flex-direction: column;
       align-items: center;
       gap: 0.35rem;
     }
@@ -121,24 +120,28 @@
   </div>
 
   <script>
-    /* ---------------- CONFIG: Query & Feed URL ----------------
-       Small/FPV/commercial drones in warfare; exclude big platforms; last 30 days.
-    */
-    var QUERY = [
-      '(' +
-        'intitle:FPV OR "FPV drone" OR "FPV attack" OR "FPV strike" OR ' +
-        'sUAS OR "small UAS" OR "small drone" OR "commercial drone" OR "commercial quadcopter" OR ' +
-        'quadcopter OR "DJI Mavic" OR "DJI FPV" OR "COTS drone" OR "off-the-shelf drone" OR "improvised drone" OR "racing drone"' +
-      ')' +
-      ' AND ' +
-      '(' +
-        'warfare OR combat OR attack OR strike OR battlefield OR military OR infantry OR "front-line"' +
-      ')' +
-      ' when:30d ' +
-      ' -shahed -"shahed-136" -"shahed 131" -TB2 -Bayraktar -MQ-9 -Reaper -"Wing Loong" -HALE -MALE -"long-range" -"cruise missile"'
-    ].join('');
+    /*
+      TWO complementary queries are fetched and merged:
 
-    var FEED_URL = 'https://news.google.com/rss/search?q=' + encodeURIComponent(QUERY);
+      QUERY_A  — operational/combat news (Ukraine, strikes, battlefield use)
+      QUERY_B  — capability/development news (swarms, counter-UAS, new tech)
+
+      Both use when:7d (shorter window = fresher results from Google News RSS).
+      Results are de-duplicated by link, then sorted newest-first.
+    */
+
+    var QUERY_A =
+      '("FPV drone" OR "FPV attack" OR "FPV strike" OR sUAS OR "small drone" OR "drone warfare" OR "drone strike")' +
+      ' AND (military OR combat OR Ukraine OR warfare OR battlefield)' +
+      ' when:7d';
+
+    var QUERY_B =
+      '("drone swarm" OR "counter-UAS" OR "counter-drone" OR "loitering munition" OR "kamikaze drone" OR "suicide drone" OR "sUAS capability" OR "drone technology")' +
+      ' AND (military OR defense OR warfare OR army OR "armed forces")' +
+      ' when:7d';
+
+    var FEED_URL_A = 'https://news.google.com/rss/search?q=' + encodeURIComponent(QUERY_A);
+    var FEED_URL_B = 'https://news.google.com/rss/search?q=' + encodeURIComponent(QUERY_B);
 
     /* ---------------- Helpers ---------------- */
     function formatDate(dateStr) {
@@ -157,22 +160,15 @@
       el.style.display = message ? 'block' : 'none';
     }
 
-    // Trim title before first hyphen / em dash
     function splitTitle(title) {
       if (!title) return { headline: '', publication: '' };
       var hyphenIdx = title.indexOf(' - ');
       if (hyphenIdx !== -1) {
-        return {
-          headline: title.slice(0, hyphenIdx).trim(),
-          publication: title.slice(hyphenIdx + 3).trim()
-        };
+        return { headline: title.slice(0, hyphenIdx).trim(), publication: title.slice(hyphenIdx + 3).trim() };
       }
       var emDashIdx = title.indexOf(' — ');
       if (emDashIdx !== -1) {
-        return {
-          headline: title.slice(0, emDashIdx).trim(),
-          publication: title.slice(emDashIdx + 3).trim()
-        };
+        return { headline: title.slice(0, emDashIdx).trim(), publication: title.slice(emDashIdx + 3).trim() };
       }
       return { headline: title.trim(), publication: '' };
     }
@@ -183,18 +179,17 @@
       return '';
     }
 
-    /* ---------------- LocalStorage cache (versioned & URL‑tied) ---------------- */
-    var CACHE_VERSION = 'v6_sort_20260303';
-    var CACHE_BASE = 'news_cache_' + CACHE_VERSION + '_';
-    var CACHE_KEY = CACHE_BASE + btoa(FEED_URL).slice(0, 16);
+    /* ---------------- Cache ---------------- */
+    var CACHE_VERSION = 'v7_dual_20260303';
+    var CACHE_KEY = 'news_cache_' + CACHE_VERSION;
     var CACHE_TIME_KEY = CACHE_KEY + '_time';
-    var CACHE_TTL_MS = 2 * 60 * 60 * 1000; // fresh for 2 hours
+    var CACHE_TTL_MS = 2 * 60 * 60 * 1000;
 
     function saveCache(items) {
       try {
         localStorage.setItem(CACHE_KEY, JSON.stringify(items || []));
         localStorage.setItem(CACHE_TIME_KEY, String(Date.now()));
-      } catch (e) { /* ignore quota errors */ }
+      } catch (e) {}
     }
 
     function loadCache() {
@@ -209,25 +204,32 @@
       }
     }
 
-    /* ---------------- Sorting (Newest at top) ---------------- */
+    /* ---------------- Sorting ---------------- */
     function sortByDateDesc(items) {
-      // Create a shallow copy to avoid mutating the original array
       return (items || []).slice().sort(function(a, b) {
         var ta = a && a.pubDateISO ? new Date(a.pubDateISO).getTime() : 0;
         var tb = b && b.pubDateISO ? new Date(b.pubDateISO).getTime() : 0;
-        return tb - ta; // newest first
+        return tb - ta;
       });
     }
 
-    /* ---------------- Normalized rendering ----------------
-       items: [{title, link, publication, author, pubDateISO}]
-    */
+    /* ---------------- De-duplicate by link ---------------- */
+    function dedupeByLink(items) {
+      var seen = {};
+      return (items || []).filter(function(it) {
+        var key = (it.link || '').split('?')[0]; // strip query params
+        if (seen[key]) return false;
+        seen[key] = true;
+        return true;
+      });
+    }
+
+    /* ---------------- Rendering ---------------- */
     function renderNormalizedItems(items, elementId, maxItems) {
       var list = document.getElementById(elementId);
       list.innerHTML = '';
 
-      // Sort newest → oldest before rendering
-      var ordered = sortByDateDesc(items);
+      var ordered = sortByDateDesc(dedupeByLink(items));
       var n = Math.min(ordered.length, maxItems || 20);
 
       if (!n) {
@@ -262,19 +264,18 @@
       }
     }
 
-    /* ---------------- Fetch via multiple proxies (XML path) ---------------- */
+    /* ---------------- Proxy fetch (XML) ---------------- */
     function buildProxyUrls(feedUrl) {
-      // Use US edition for volume; cache‑buster so proxies fetch fresh content.
       var cacheBust = '&_=' + Date.now();
       var augmented = feedUrl + '&hl=en&gl=US&ceid=US:en' + cacheBust;
       return [
-        'https://cors.isomorphic-git.org/' + augmented,                                 // Proxy 1
-        'https://corsproxy.io/?' + augmented,                                           // Proxy 2
-        'https://api.allorigins.win/raw?url=' + encodeURIComponent(augmented)           // Proxy 3
+        'https://cors.isomorphic-git.org/' + augmented,
+        'https://corsproxy.io/?' + augmented,
+        'https://api.allorigins.win/raw?url=' + encodeURIComponent(augmented)
       ];
     }
 
-    async function tryFetchXMLWithProxies(feedUrl) {
+    async function tryFetchXML(feedUrl) {
       var urls = buildProxyUrls(feedUrl);
       for (var i = 0; i < urls.length; i++) {
         try {
@@ -283,55 +284,40 @@
           var text = await res.text();
           var parser = new DOMParser();
           var xml = parser.parseFromString(text, 'text/xml');
-          var err = xml.getElementsByTagName('parsererror');
-          if (err && err.length) continue;
+          if (xml.getElementsByTagName('parsererror').length) continue;
           return xml;
-        } catch (e) { /* try next proxy */ }
+        } catch (e) {}
       }
-      throw new Error('All XML proxies failed');
+      throw new Error('All XML proxies failed for ' + feedUrl);
     }
 
-    /* ---------------- Fallback: rss2json ---------------- */
-    async function fetchRSSViaRss2Json(feedUrl, count) {
-      var url = 'https://api.rss2json.com/v1/api.json?count=' + (count || 20) +
+    /* ---------------- rss2json fallback ---------------- */
+    async function fetchRss2Json(feedUrl, count) {
+      var url = 'https://api.rss2json.com/v1/api.json?count=' + (count || 30) +
                 '&rss_url=' + encodeURIComponent(feedUrl + '&hl=en&gl=US&ceid=US:en&_=' + Date.now());
       var res = await fetch(url);
       if (!res.ok) throw new Error('rss2json HTTP ' + res.status);
       return await res.json();
     }
 
-    /* ---------------- Normalize items from XML / JSON ---------------- */
+    /* ---------------- Normalise items ---------------- */
     function itemsFromXml(xmlDoc, limit) {
       var out = [];
       var items = xmlDoc.getElementsByTagName('item');
-      var n = Math.min(items.length, limit || 20);
+      var n = Math.min(items.length, limit || 50);
       for (var i = 0; i < n; i++) {
         var it = items[i];
         var rawTitle = textOf(it, 'title') || 'Untitled';
         var link = textOf(it, 'link') || '#';
         var pubDate = textOf(it, 'pubDate') || '';
-
-        // Prefer explicit <source> (Google News adds this for the outlet)
         var sourceNodes = it.getElementsByTagName('source');
         var source = (sourceNodes && sourceNodes.length) ? (sourceNodes[0].textContent || '').trim() : '';
-
         var split = splitTitle(rawTitle);
-        var headline = split.headline || 'Untitled';
-        var publication = source || split.publication || '';
-
-        // Author variations (<dc:creator> or <author>)
         var author = '';
         var creators = it.getElementsByTagName('dc:creator');
         if (creators && creators.length) author = (creators[0].textContent || '').trim();
         if (!author) author = textOf(it, 'author');
-
-        out.push({
-          title: headline,
-          link: link,
-          publication: publication,
-          author: author,
-          pubDateISO: pubDate
-        });
+        out.push({ title: split.headline || 'Untitled', link: link, publication: source || split.publication || '', author: author, pubDateISO: pubDate });
       }
       return out;
     }
@@ -339,28 +325,32 @@
     function itemsFromRss2Json(json, limit) {
       var out = [];
       var arr = (json && json.items) ? json.items : [];
-      var n = Math.min(arr.length, limit || 20);
+      var n = Math.min(arr.length, limit || 50);
       for (var i = 0; i < n; i++) {
         var it = arr[i];
         var rawTitle = it && it.title ? it.title : 'Untitled';
-        var link = it && it.link ? it.link : '#';
-        var pubDateISO = (it && it.pubDate) ? it.pubDate : '';
-
         var split = splitTitle(rawTitle);
-        var headline = split.headline || 'Untitled';
-        // rss2json often maps outlet → author; use it for publication if available
-        var publication = (it && it.author) ? it.author : (split.publication || '');
-        var author = (it && it.author) ? it.author : '';
-
         out.push({
-          title: headline,
-          link: link,
-          publication: publication,
-          author: author,
-          pubDateISO: pubDateISO
+          title: split.headline || 'Untitled',
+          link: it && it.link ? it.link : '#',
+          publication: (it && it.author) ? it.author : (split.publication || ''),
+          author: (it && it.author) ? it.author : '',
+          pubDateISO: (it && it.pubDate) ? it.pubDate : ''
         });
       }
       return out;
+    }
+
+    /* ---------------- Fetch one feed (XML → rss2json) ---------------- */
+    async function fetchOneFeed(feedUrl) {
+      try {
+        var xml = await tryFetchXML(feedUrl);
+        return itemsFromXml(xml, 50);
+      } catch (e) {
+        console.warn('XML failed, falling back to rss2json for', feedUrl, e);
+        var json = await fetchRss2Json(feedUrl, 50);
+        return itemsFromRss2Json(json, 50);
+      }
     }
 
     /* ---------------- Controller ---------------- */
@@ -370,47 +360,42 @@
       list.innerHTML = '<li class="card" aria-busy="true" style="opacity:.8">Loading…</li>';
 
       try {
-        // Preferred: fetch RAW RSS XML via proxies
-        var xml = await tryFetchXMLWithProxies(FEED_URL);
-        var items = itemsFromXml(xml, 100); // pull as many as available, we’ll cap and sort later
-        saveCache(items);
-        renderNormalizedItems(items, 'feed2', 20); // sorted newest-first inside renderer
+        // Fetch both feeds in parallel
+        var results = await Promise.allSettled([
+          fetchOneFeed(FEED_URL_A),
+          fetchOneFeed(FEED_URL_B)
+        ]);
+
+        var combined = [];
+        results.forEach(function(r) {
+          if (r.status === 'fulfilled') combined = combined.concat(r.value);
+        });
+
+        if (!combined.length) throw new Error('Both feeds returned no items');
+
+        saveCache(combined);
+        renderNormalizedItems(combined, 'feed2', 20);
         showStatus('', false);
-      } catch (e1) {
-        console.warn('XML proxy path failed, trying rss2json fallback:', e1);
-        try {
-          var json = await fetchRSSViaRss2Json(FEED_URL, 100);
-          var itemsJ = itemsFromRss2Json(json, 100);
-          saveCache(itemsJ);
-          renderNormalizedItems(itemsJ, 'feed2', 20);
-          showStatus('', false);
-        } catch (e2) {
-          console.error('rss2json fallback failed:', e2);
-          var cache = loadCache();
-          if (cache.items && cache.items.length) {
-            renderNormalizedItems(cache.items, 'feed2', 20);
-            var whenStr = cache.when ? new Date(cache.when).toLocaleString() : 'earlier';
-            showStatus('Showing cached news from ' + whenStr + ' (live update failed).', true);
-          } else {
-            list.innerHTML = '';
-            var li = document.createElement('li');
-            li.className = 'card';
-            li.textContent = 'Could not load feed. Try again later.';
-            list.appendChild(li);
-            showStatus('Could not load news (network issue or rate limiting). Will retry automatically.', true);
-          }
+      } catch (err) {
+        console.error('Feed load failed:', err);
+        var cache = loadCache();
+        if (cache.items && cache.items.length) {
+          renderNormalizedItems(cache.items, 'feed2', 20);
+          var whenStr = cache.when ? new Date(cache.when).toLocaleString() : 'earlier';
+          showStatus('Showing cached news from ' + whenStr + ' (live update failed).', true);
+        } else {
+          list.innerHTML = '';
+          var li = document.createElement('li');
+          li.className = 'card';
+          li.textContent = 'Could not load feed. Try again later.';
+          list.appendChild(li);
+          showStatus('Could not load news (network issue or rate limiting). Will retry automatically.', true);
         }
       }
     }
 
-    function refreshFeeds() {
-      loadNews();
-      // loadSocial(); loadAcademia(); // when ready
-    }
-
-    // Initial load + periodic refresh
-    refreshFeeds();
-    setInterval(refreshFeeds, 300000); // every 5 minutes
+    loadNews();
+    setInterval(loadNews, 300000); // refresh every 5 minutes
   </script>
 
 </body>

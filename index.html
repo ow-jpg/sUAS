@@ -7,7 +7,7 @@
     html, body {
       margin: 0;
       padding: 0;
-      background-color: #1e1e1e; /* dark grey */
+      background-color: #1e1e1e;
       color: #f0f0f0;
       font-family: Courier, serif;
     }
@@ -17,17 +17,26 @@
     }
 
     h1 {
-      font-size: 1.6rem; /* slightly smaller */
-      margin-bottom: 1.5rem;
+      font-size: 1.6rem;
+      margin-bottom: 2rem;
     }
 
-    a {
-      text-decoration: none;
-      color: #4da3ff;
+    h2 {
+      font-size: 1.1rem;
+      margin-bottom: 1rem;
+      border-bottom: 1px solid #444;
+      padding-bottom: 0.5rem;
+      text-transform: lowercase;
     }
 
-    a:hover {
-      text-decoration: underline;
+    .columns {
+      display: flex;
+      justify-content: space-between;
+      gap: 2rem;
+    }
+
+    .column {
+      flex: 1;
     }
 
     ul {
@@ -38,26 +47,57 @@
     li {
       margin-bottom: 1rem;
     }
+
+    a {
+      text-decoration: none;
+      color: #4da3ff;
+    }
+
+    a:hover {
+      text-decoration: underline;
+    }
   </style>
 </head>
 <body>
+
   <h1>sUAS database</h1>
-  <ul id="feed"></ul>
+
+  <div class="columns">
+    <div class="column">
+      <h2>social</h2>
+      <ul id="feed1"></ul>
+    </div>
+
+    <div class="column">
+      <h2>news</h2>
+      <ul id="feed2"></ul>
+    </div>
+
+    <div class="column">
+      <h2>academia</h2>
+      <ul id="feed3"></ul>
+    </div>
+  </div>
 
   <script>
-    async function loadRSS() {
+    async function loadRSS(feedUrl, elementId) {
       const proxy = "https://api.rss2json.com/v1/api.json?rss_url=";
-      const feedUrl = encodeURIComponent("https://your-rss-link.com/feed");
-      const res = await fetch(proxy + feedUrl);
+      const encodedUrl = encodeURIComponent(feedUrl);
+      const res = await fetch(proxy + encodedUrl);
       const data = await res.json();
-      const list = document.getElementById('feed');
+      const list = document.getElementById(elementId);
+
       data.items.forEach(item => {
         const li = document.createElement('li');
         li.innerHTML = `<a href="${item.link}" target="_blank">${item.title}</a>`;
         list.appendChild(li);
       });
     }
-    loadRSS();
+
+    loadRSS("https://your-social-rss-link.com/feed", "feed1");
+    loadRSS("https://your-news-rss-link.com/feed", "feed2");
+    loadRSS("https://your-academia-rss-link.com/feed", "feed3");
   </script>
+
 </body>
 </html>

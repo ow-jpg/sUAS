@@ -34,7 +34,6 @@
     a { text-decoration: none; color: #4da3ff; }
     a:hover { text-decoration: underline; }
 
-    /* --- News card styles --- */
     .news-list {
       display: grid;
       grid-template-columns: 1fr;
@@ -121,23 +120,40 @@
 
   <script>
     /*
-      TWO complementary queries are fetched and merged:
+      QUERY_A — combat/operational FPV & small drone news
+      QUERY_B — capability/technology development news
 
-      QUERY_A  — operational/combat news (Ukraine, strikes, battlefield use)
-      QUERY_B  — capability/development news (swarms, counter-UAS, new tech)
-
-      Both use when:7d (shorter window = fresher results from Google News RSS).
-      Results are de-duplicated by link, then sorted newest-first.
+      Source whitelist uses Google News `source:` operator to restrict to reputable outlets.
+      Exclusions remove Shahed-class, TB2, and MALE/HALE platforms.
+      Results are merged, title-similarity deduped (Jaccard), then sorted newest-first.
     */
 
+    var SOURCE_WHITELIST =
+      '(source:reuters.com OR source:bbc.com OR source:bbc.co.uk OR ' +
+      'source:apnews.com OR source:theguardian.com OR source:politico.com OR ' +
+      'source:defenseone.com OR source:breakingdefense.com OR ' +
+      'source:thedrive.com OR source:militarytimes.com OR ' +
+      'source:janes.com OR source:rferl.org OR source:kyivindependent.com OR ' +
+      'source:ft.com OR source:wsj.com OR source:forbes.com OR ' +
+      'source:wired.com OR source:aviationweek.com OR source:taskandpurpose.com)';
+
+    var EXCLUSIONS =
+      ' -Shahed -"Shahed-136" -"Shahed-131" -TB2 -Bayraktar' +
+      ' -MQ-9 -Reaper -"Wing Loong" -HALE -MALE' +
+      ' -"cruise missile" -"ballistic missile"';
+
     var QUERY_A =
-      '("FPV drone" OR "FPV attack" OR "FPV strike" OR sUAS OR "small drone" OR "drone warfare" OR "drone strike")' +
-      ' AND (military OR combat OR Ukraine OR warfare OR battlefield)' +
+      '("FPV drone" OR "FPV attack" OR "FPV strike" OR "small drone" OR sUAS OR "commercial drone" OR quadcopter)' +
+      ' AND (military OR combat OR Ukraine OR warfare OR battlefield OR "front line")' +
+      ' AND ' + SOURCE_WHITELIST +
+      EXCLUSIONS +
       ' when:7d';
 
     var QUERY_B =
-      '("drone swarm" OR "counter-UAS" OR "counter-drone" OR "loitering munition" OR "kamikaze drone" OR "suicide drone" OR "sUAS capability" OR "drone technology")' +
-      ' AND (military OR defense OR warfare OR army OR "armed forces")' +
+      '("drone swarm" OR "counter-UAS" OR "counter-drone" OR "drone technology" OR "drone capability" OR "small UAS")' +
+      ' AND (military OR defense OR warfare OR army)' +
+      ' AND ' + SOURCE_WHITELIST +
+      EXCLUSIONS +
       ' when:7d';
 
     var FEED_URL_A = 'https://news.google.com/rss/search?q=' + encodeURIComponent(QUERY_A);
@@ -179,9 +195,61 @@
       return '';
     }
 
+    /* ---------------- Title-similarity deduplication ----------------
+       Strips stopwords, builds word-set fingerprints, drops items
+       where Jaccard similarity with any already-seen title exceeds 0.6.
+    */
+    var STOPWORDS = {
+      a:1, an:1, the:1, in:1, on:1, at:1, to:1, of:1, and:1, or:1,
+      for:1, is:1, are:1, was:1, were:1, its:1, it:1, as:1, by:1,
+      with:1, from:1, that:1, this:1, be:1, has:1, have:1, after:1,
+      over:1, says:1, say:1, new:1, amid:1, into:1
+    };
+
+    function titleFingerprint(title) {
+      return (title || '')
+        .toLowerCase()
+        .replace(/[^a-z0-9\s]/g, '')
+        .split(/\s+/)
+        .filter(function(w) { return w.length > 2 && !STOPWORDS[w]; });
+    }
+
+    function jaccardSimilarity(a, b) {
+      var setA = {}, intersection = 0, union = 0;
+      a.forEach(function(w) { setA[w] = 1; });
+      var allKeys = {};
+      a.forEach(function(w) { allKeys[w] = 1; });
+      b.forEach(function(w) { allKeys[w] = 1; });
+      Object.keys(allKeys).forEach(function(w) {
+        if (setA[w] && b.indexOf(w) !== -1) intersection++;
+        union++;
+      });
+      return union === 0 ? 0 : intersection / union;
+    }
+
+    function dedupeItems(items) {
+      var seenLinks = {};
+      var seenFingerprints = [];
+      var out = [];
+      (items || []).forEach(function(it) {
+        var linkKey = (it.link || '').split('?')[0];
+        if (seenLinks[linkKey]) return;
+        seenLinks[linkKey] = true;
+
+        var fp = titleFingerprint(it.title);
+        var isDupe = seenFingerprints.some(function(seen) {
+          return jaccardSimilarity(fp, seen) > 0.6;
+        });
+        if (isDupe) return;
+
+        seenFingerprints.push(fp);
+        out.push(it);
+      });
+      return out;
+    }
+
     /* ---------------- Cache ---------------- */
-    var CACHE_VERSION = 'v7_dual_20260303';
-    var CACHE_KEY = 'news_cache_' + CACHE_VERSION;
+    var CACHE_KEY = 'news_cache_v8_20260303';
     var CACHE_TIME_KEY = CACHE_KEY + '_time';
     var CACHE_TTL_MS = 2 * 60 * 60 * 1000;
 
@@ -197,8 +265,7 @@
         var raw = localStorage.getItem(CACHE_KEY);
         var when = parseInt(localStorage.getItem(CACHE_TIME_KEY) || '0', 10);
         var items = raw ? JSON.parse(raw) : [];
-        var fresh = when && (Date.now() - when < CACHE_TTL_MS);
-        return { items: items, when: when, fresh: fresh };
+        return { items: items, when: when, fresh: when && (Date.now() - when < CACHE_TTL_MS) };
       } catch (e) {
         return { items: [], when: 0, fresh: false };
       }
@@ -213,23 +280,11 @@
       });
     }
 
-    /* ---------------- De-duplicate by link ---------------- */
-    function dedupeByLink(items) {
-      var seen = {};
-      return (items || []).filter(function(it) {
-        var key = (it.link || '').split('?')[0]; // strip query params
-        if (seen[key]) return false;
-        seen[key] = true;
-        return true;
-      });
-    }
-
     /* ---------------- Rendering ---------------- */
-    function renderNormalizedItems(items, elementId, maxItems) {
+    function renderItems(items, elementId, maxItems) {
       var list = document.getElementById(elementId);
       list.innerHTML = '';
-
-      var ordered = sortByDateDesc(dedupeByLink(items));
+      var ordered = sortByDateDesc(dedupeItems(items));
       var n = Math.min(ordered.length, maxItems || 20);
 
       if (!n) {
@@ -242,36 +297,27 @@
 
       for (var i = 0; i < n; i++) {
         var it = ordered[i];
-        var displayTitle = it.title || 'Untitled';
-        var link = it.link || '#';
-        var publication = it.publication || '';
-        var author = it.author || '';
-        var dateText = it.pubDateISO ? formatDate(it.pubDateISO) : null;
-
         var li = document.createElement('li');
         li.className = 'card';
-
-        var html = '';
-        html += '<a class="title" href="' + link + '" target="_blank" rel="noopener noreferrer">' + displayTitle + '</a>';
+        var dateText = it.pubDateISO ? formatDate(it.pubDateISO) : null;
+        var html = '<a class="title" href="' + (it.link || '#') + '" target="_blank" rel="noopener noreferrer">' + (it.title || 'Untitled') + '</a>';
         html += '<div class="meta">';
-        if (publication) html += '<div class="source">' + publication + '</div>';
-        if (author) html += '<div class="author">' + author + '</div>';
+        if (it.publication) html += '<div class="source">' + it.publication + '</div>';
+        if (it.author) html += '<div class="author">' + it.author + '</div>';
         if (dateText) html += '<div class="date">' + dateText + '</div>';
         html += '</div>';
-
         li.innerHTML = html;
         list.appendChild(li);
       }
     }
 
-    /* ---------------- Proxy fetch (XML) ---------------- */
+    /* ---------------- Proxy fetch ---------------- */
     function buildProxyUrls(feedUrl) {
-      var cacheBust = '&_=' + Date.now();
-      var augmented = feedUrl + '&hl=en&gl=US&ceid=US:en' + cacheBust;
+      var aug = feedUrl + '&hl=en&gl=US&ceid=US:en&_=' + Date.now();
       return [
-        'https://cors.isomorphic-git.org/' + augmented,
-        'https://corsproxy.io/?' + augmented,
-        'https://api.allorigins.win/raw?url=' + encodeURIComponent(augmented)
+        'https://cors.isomorphic-git.org/' + aug,
+        'https://corsproxy.io/?' + aug,
+        'https://api.allorigins.win/raw?url=' + encodeURIComponent(aug)
       ];
     }
 
@@ -282,25 +328,23 @@
           var res = await fetch(urls[i]);
           if (!res.ok) continue;
           var text = await res.text();
-          var parser = new DOMParser();
-          var xml = parser.parseFromString(text, 'text/xml');
+          var xml = new DOMParser().parseFromString(text, 'text/xml');
           if (xml.getElementsByTagName('parsererror').length) continue;
           return xml;
         } catch (e) {}
       }
-      throw new Error('All XML proxies failed for ' + feedUrl);
+      throw new Error('All XML proxies failed');
     }
 
-    /* ---------------- rss2json fallback ---------------- */
     async function fetchRss2Json(feedUrl, count) {
-      var url = 'https://api.rss2json.com/v1/api.json?count=' + (count || 30) +
+      var url = 'https://api.rss2json.com/v1/api.json?count=' + (count || 50) +
                 '&rss_url=' + encodeURIComponent(feedUrl + '&hl=en&gl=US&ceid=US:en&_=' + Date.now());
       var res = await fetch(url);
       if (!res.ok) throw new Error('rss2json HTTP ' + res.status);
       return await res.json();
     }
 
-    /* ---------------- Normalise items ---------------- */
+    /* ---------------- Normalise ---------------- */
     function itemsFromXml(xmlDoc, limit) {
       var out = [];
       var items = xmlDoc.getElementsByTagName('item');
@@ -341,13 +385,13 @@
       return out;
     }
 
-    /* ---------------- Fetch one feed (XML → rss2json) ---------------- */
+    /* ---------------- Fetch one feed ---------------- */
     async function fetchOneFeed(feedUrl) {
       try {
         var xml = await tryFetchXML(feedUrl);
         return itemsFromXml(xml, 50);
       } catch (e) {
-        console.warn('XML failed, falling back to rss2json for', feedUrl, e);
+        console.warn('XML failed, falling back to rss2json:', e);
         var json = await fetchRss2Json(feedUrl, 50);
         return itemsFromRss2Json(json, 50);
       }
@@ -357,10 +401,9 @@
     async function loadNews() {
       var list = document.getElementById('feed2');
       showStatus('Loading news…', false);
-      list.innerHTML = '<li class="card" aria-busy="true" style="opacity:.8">Loading…</li>';
+      list.innerHTML = '<li class="card" style="opacity:.8">Loading…</li>';
 
       try {
-        // Fetch both feeds in parallel
         var results = await Promise.allSettled([
           fetchOneFeed(FEED_URL_A),
           fetchOneFeed(FEED_URL_B)
@@ -374,13 +417,13 @@
         if (!combined.length) throw new Error('Both feeds returned no items');
 
         saveCache(combined);
-        renderNormalizedItems(combined, 'feed2', 20);
+        renderItems(combined, 'feed2', 20);
         showStatus('', false);
       } catch (err) {
         console.error('Feed load failed:', err);
         var cache = loadCache();
         if (cache.items && cache.items.length) {
-          renderNormalizedItems(cache.items, 'feed2', 20);
+          renderItems(cache.items, 'feed2', 20);
           var whenStr = cache.when ? new Date(cache.when).toLocaleString() : 'earlier';
           showStatus('Showing cached news from ' + whenStr + ' (live update failed).', true);
         } else {
@@ -395,7 +438,7 @@
     }
 
     loadNews();
-    setInterval(loadNews, 300000); // refresh every 5 minutes
+    setInterval(loadNews, 300000);
   </script>
 
 </body>

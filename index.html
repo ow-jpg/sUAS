@@ -15,7 +15,7 @@
 
     body { padding: 2rem; }
 
-    /* ── Refined Header Style ── */
+    /* ── Header Style ── */
     .header-container {
       display: flex;
       justify-content: space-between;
@@ -27,32 +27,33 @@
     .header-container h1 { 
       margin: 0; 
       font-size: 1.6rem; 
-      letter-spacing: 2px; 
+      letter-spacing: 1px; 
       font-weight: bold; 
       color: #fff; 
-      text-transform: uppercase;
-      text-shadow: 0 0 8px rgba(77, 163, 255, 0.2);
+      /* Casing is handled in the HTML text */
+      text-shadow: 0 0 8px rgba(77, 163, 255, 0.15);
     }
     .header-info { text-align: right; font-size: 0.72rem; color: #888; display: flex; flex-direction: column; gap: 4px; }
     .status-indicator { color: #44ff44; font-weight: bold; }
 
-    h2 {
-      font-size: 1.1rem;
-      margin-bottom: 1rem;
-      border-bottom: 1px solid #444;
-      padding-bottom: 0.5rem;
-      text-transform: lowercase;
-    }
-
-    /* ── Column Header for Refresh Button ── */
+    /* ── Vertical Alignment Fix ── */
     .col-header {
       display: flex;
       justify-content: space-between;
-      align-items: baseline;
+      align-items: center; /* Ensures text and button are centered on the same line */
       border-bottom: 1px solid #444;
       margin-bottom: 1rem;
+      height: 32px; /* Fixed height forces all three columns to align perfectly */
     }
-    .col-header h2 { border: none; margin: 0; padding: 0; }
+    
+    .col-header h2 { 
+      border: none; 
+      margin: 0; 
+      padding: 0; 
+      font-size: 1.1rem;
+      text-transform: lowercase;
+    }
+
     .refresh-btn {
       background: none;
       border: none;
@@ -119,68 +120,30 @@
       padding: 0.75rem 0.9rem;
       margin-bottom: 0.6rem;
       transition: border-color 0.15s ease, transform 0.12s ease;
-      box-shadow: 0 0 10px rgba(77, 163, 255, 0.06);
     }
 
-    .account-card:hover {
-      border-color: #4da3ff;
-      transform: translateY(-1px);
-      box-shadow: 0 0 14px rgba(77, 163, 255, 0.13);
-    }
-
+    .account-card:hover { border-color: #4da3ff; transform: translateY(-1px); }
     .account-card .handle { font-weight: 700; color: #4da3ff; font-size: 0.9rem; margin-bottom: 0.2rem; }
-    .account-card .handle:hover { text-decoration: underline; }
     .account-card .desc { font-size: 0.82rem; color: #aaa; line-height: 1.4; }
     .account-card .tag { font-size: 0.72rem; color: #7a5a96; margin-top: 0.25rem; }
-
-    /* ── News & academia cards ── */
-    .news-list, .academia-list { display: grid; grid-template-columns: 1fr; gap: 0.8rem; }
 
     .card {
       background: #4B365F;
       border: 1px solid #3d2c4e;
       border-radius: 10px;
       padding: 0.9rem 1rem;
-      transition: transform 0.12s ease, box-shadow 0.12s ease, border-color 0.2s ease;
+      transition: transform 0.12s ease;
       text-align: center;
-      box-shadow: 0 0 12px rgba(100, 65, 120, 0.35);
     }
 
-    .card:hover {
-      transform: translateY(-1px);
-      box-shadow: 0 0 20px rgba(120, 80, 150, 0.55);
-      border-color: #5a4370;
-    }
-
-    .card a.title {
-      display: inline-block;
-      color: #fff;
-      font-weight: 700;
-      text-decoration: none;
-      line-height: 1.35;
-    }
-
+    .card:hover { transform: translateY(-1px); border-color: #5a4370; }
+    .card a.title { display: inline-block; color: #fff; font-weight: 700; text-decoration: none; line-height: 1.35; }
     .card a.title:hover { text-decoration: underline; }
 
-    .academia-card {
-      background: #2e3d52;
-      border: 1px solid #263547;
-      box-shadow: 0 0 12px rgba(50, 90, 130, 0.35);
-    }
+    .academia-card { background: #2e3d52; border: 1px solid #263547; }
+    .academia-card:hover { border-color: #3a5472; }
 
-    .academia-card:hover {
-      box-shadow: 0 0 20px rgba(60, 110, 160, 0.55);
-      border-color: #3a5472;
-    }
-
-    .meta {
-      margin-top: 0.55rem;
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      gap: 0.35rem;
-    }
-
+    .meta { margin-top: 0.55rem; display: flex; flex-direction: column; align-items: center; gap: 0.35rem; }
     .meta .source { color: #f1e9fa; font-size: 0.9rem; font-weight: 600; }
     .meta .author { color: #e9dbf6; font-size: 0.88rem; }
     .meta .date   { color: #d9c8ee; font-size: 0.86rem; }
@@ -205,10 +168,8 @@
 </head>
 <body>
 
-  <noscript style="color:#ffbcbc;">This page requires JavaScript to load feeds.</noscript>
-
   <div class="header-container">
-    <h1>sUAS Database</h1>
+    <h1>sUAS database</h1>
     <div class="header-info">
       <span class="status-indicator">● SYSTEM_ONLINE</span>
       <span id="sync-time">SYNC: --:--</span>
@@ -240,7 +201,9 @@
     </div>
 
     <div class="column">
-      <h2>news</h2>
+      <div class="col-header">
+        <h2>news</h2>
+      </div>
       <div id="news-status" class="status" style="display:none;"></div>
       <div class="scroll-wrap">
         <ul id="feed2" class="news-list"></ul>
@@ -248,7 +211,9 @@
     </div>
 
     <div class="column">
-      <h2>academia</h2>
+      <div class="col-header">
+        <h2>academia</h2>
+      </div>
       <div id="academia-status" class="status" style="display:none;"></div>
       <div class="scroll-wrap">
         <ul id="feed3" class="academia-list"></ul>
@@ -258,7 +223,7 @@
   </div>
 
   <script>
-    /* ── Account cards (Dronefare & KyivIndependent Removed) ── */
+    /* ── Account cards ── */
     var ACCOUNTS = [
       { handle: 'UAWeapons',       desc: 'Ukrainian weapons & drone footage tracker',                                          tag: 'OSINT · battlefield' },
       { handle: 'DefMon3',         desc: 'Detailed OSINT, frequent FPV footage & analysis',                                    tag: 'OSINT · battlefield' },
@@ -273,7 +238,7 @@
       { handle: 'drones_watcher',  desc: 'Tracks drone use in conflict zones',                                                 tag: 'analysis' },
       { handle: 'JominiW',         desc: 'Military analyst, strong UAS focus',                                                 tag: 'analysis' },
       { handle: 'CalibreObscura',  desc: 'Weapons & equipment analyst, FPV coverage',                                         tag: 'analysis · FPV' },
-      { handle: 'MENASTREAM',      desc: 'Premier Sahel OSINT — drone use by state & non-state actors in Mali/Niger/Burkina', tag: 'Sahel · OSINT' },
+      { handle: 'MENASTREAM',      desc: 'Premier OSINT — drone use by state & non-state actors in Mali/Niger/Burkina', tag: 'Sahel · OSINT' },
       { handle: 'TheWarZone',      desc: 'The War Zone — breaking defense & UAS news',                                        tag: 'publication' },
       { handle: 'sUASnews',        desc: 'sUAS News — dedicated small UAS industry coverage',                                 tag: 'publication' }
     ];
@@ -313,7 +278,7 @@
       document.body.appendChild(script);
     });
 
-    /* ── Shared helpers ── */
+    /* ── Helpers ── */
     function formatDate(dateStr) {
       try {
         var d = new Date(dateStr);
@@ -384,8 +349,8 @@
     }
 
     /* ── Cache ── */
-    var NEWS_CACHE_KEY = 'news_cache_v14';
-    var ACAD_CACHE_KEY = 'acad_cache_v3';
+    var NEWS_CACHE_KEY = 'news_cache_v15';
+    var ACAD_CACHE_KEY = 'acad_cache_v4';
     var CACHE_TTL_MS   = 2 * 60 * 60 * 1000;
 
     function saveCache(key, items) {
@@ -400,132 +365,41 @@
       } catch(e) { return { items: [], when: 0, fresh: false }; }
     }
 
-    /* ── News feed ── */
-    var TITLE_REQUIRE_TERMS = [
-      'fpv', 'small drone', 'small drones', 'quadcopter', 'commercial drone',
-      'suas', 'micro drone', 'nano drone', 'drone swarm', 'first-person view',
-      'hobby drone', 'modified drone', 'dji', 'fpv attack', 'fpv strike',
-      'fpv drone', 'drone warfare', 'drone strike', 'counter-drone', 'anti-drone',
-      'counter-uas', 'drone unit', 'drone crew', 'drone pilot', 'drone operator',
-      'unmanned aerial', 'uncrewed', 'drone attack', 'drone kamikaze'
-    ];
-
-    var TITLE_BLOCKLIST = [
-      'shahed','geran','tb2','tb-2','bayraktar','akinci','aksungur',
-      'mq-9','mq9','reaper','predator drone','global hawk',
-      'wing loong','ch-4','ch-5','heron','hermes','watchkeeper',
-      'hale drone','male drone','hale uav','male uav',
-      'long-range drone','strategic drone','cruise missile','ballistic missile','glide bomb',
-      'drone light show','drone show','amazon drone','drone photography',
-      'drone racing league','drone racing championship','best drone','consumer drone',
-      'drone review','dji mini','dji air 3','dji mavic mini',
-      'aerial photography','firefighting drone','agriculture drone','crop drone',
-      'medical drone','package delivery','postal drone','delivery drone',
-      'drone footage','cinematic drone'
-    ];
+    /* ── News ── */
+    var TITLE_REQUIRE_TERMS = ['fpv','small drone','quadcopter','commercial drone','suas','micro drone','nano drone','drone swarm','dji','drone warfare','drone strike','counter-drone','anti-drone','counter-uas','drone pilot','drone operator','uncrewed','drone kamikaze'];
+    var TITLE_BLOCKLIST = ['shahed','geran','tb2','bayraktar','akinci','mq-9','reaper','global hawk','long-range drone','strategic drone','drone light show','drone show','amazon drone','drone photography','best drone','drone review','firefighting drone','agriculture drone','medical drone','package delivery','delivery drone'];
 
     function isTitleBlocked(t) { var l=(t||'').toLowerCase(); return TITLE_BLOCKLIST.some(function(x){return l.indexOf(x)!==-1;}); }
     function titlePassesRequire(t) { var l=(t||'').toLowerCase(); return TITLE_REQUIRE_TERMS.some(function(x){return l.indexOf(x)!==-1;}); }
 
-    var QUERY_A = '("FPV drone" OR "FPV attack" OR "FPV strike" OR "FPV drones" OR "small drone" OR "small drones" OR "quadcopter" OR "commercial drone" OR "modified drone" OR "off-the-shelf drone" OR "cheap drone") AND (military OR combat OR warfare OR Ukraine OR army OR battlefield OR weapon) when:7d';
-    var QUERY_B = '("FPV" OR "small UAS" OR sUAS OR "micro drone" OR "nano drone" OR "commercial quadcopter" OR "DJI" OR "first-person view drone") AND (military OR defense OR army OR warfare OR weapon OR "counter-drone" OR "anti-drone") when:7d';
-
-    var FEED_URL_A = 'https://news.google.com/rss/search?q=' + encodeURIComponent(QUERY_A);
-    var FEED_URL_B = 'https://news.google.com/rss/search?q=' + encodeURIComponent(QUERY_B);
+    var QUERY_A = '("FPV drone" OR "FPV attack" OR "FPV strike" OR "FPV drones" OR "small drone" OR "quadcopter") AND (military OR combat OR warfare OR Ukraine OR battlefield) when:7d';
+    var QUERY_B = '("small UAS" OR sUAS OR "commercial quadcopter" OR "DJI") AND (military OR defense OR warfare OR "counter-drone" OR "anti-drone") when:7d';
 
     var FEEDS_TIER1 = [
-      { url: FEED_URL_A,                                                                              pub: '',                 requireFilter: false },
-      { url: FEED_URL_B,                                                                              pub: '',                 requireFilter: false },
-      { url: 'https://twz.com/feed',                                                                 pub: 'The War Zone',     requireFilter: true  },
-      { url: 'https://www.suasnews.com/feed',                                                        pub: 'sUAS News',        requireFilter: false },
-      { url: 'https://dronefare.substack.com/feed',                                                  pub: 'Dronefare',        requireFilter: false },
-      { url: 'https://kyivindependent.com/feed/',                                                    pub: 'Kyiv Independent', requireFilter: true  }
+      { url: 'https://news.google.com/rss/search?q=' + encodeURIComponent(QUERY_A), pub: '', requireFilter: false },
+      { url: 'https://news.google.com/rss/search?q=' + encodeURIComponent(QUERY_B), pub: '', requireFilter: false },
+      { url: 'https://twz.com/feed', pub: 'The War Zone', requireFilter: true },
+      { url: 'https://www.suasnews.com/feed', pub: 'sUAS News', requireFilter: false }
     ];
-
-    var FEEDS_TIER2 = [
-      { url: 'https://www.ukrinform.net/rss/block-lastnews',                                         pub: 'Ukrinform',        requireFilter: true  },
-      { url: 'https://united24media.com/feed',                                                       pub: 'United24 Media',   requireFilter: true  },
-      { url: 'https://feeds.reuters.com/reuters/worldNews',                                          pub: 'Reuters',          requireFilter: true  },
-      { url: 'https://www.defensenews.com/arc/outboundfeeds/rss/category/unmanned/?outputType=xml', pub: 'Defense News',     requireFilter: false },
-      { url: 'https://dronexl.co/feed',                                                              pub: 'DroneXL',          requireFilter: true  },
-      { url: 'https://www.covertshores.com/feeds/posts/default',                                     pub: 'Covert Shores',    requireFilter: true  }
-    ];
-
-    function buildProxyUrls(feedUrl) {
-      var sep = feedUrl.indexOf('?') === -1 ? '?' : '&';
-      var aug = feedUrl + sep + '_=' + Date.now();
-      return [
-        'https://cors.isomorphic-git.org/' + aug,
-        'https://corsproxy.io/?' + aug,
-        'https://api.allorigins.win/raw?url=' + encodeURIComponent(aug)
-      ];
-    }
-
-    async function tryFetchXML(feedUrl) {
-      var urls = buildProxyUrls(feedUrl);
-      for (var i = 0; i < urls.length; i++) {
-        try {
-          var res = await fetch(urls[i]);
-          if (!res.ok) continue;
-          var xml = new DOMParser().parseFromString(await res.text(), 'text/xml');
-          if (xml.getElementsByTagName('parsererror').length) continue;
-          return xml;
-        } catch(e) {}
-      }
-      throw new Error('proxies failed');
-    }
-
-    async function fetchRss2Json(feedUrl, count) {
-      var sep = feedUrl.indexOf('?') === -1 ? '?' : '&';
-      var url = 'https://api.rss2json.com/v1/api.json?count=' + (count||50) + '&rss_url=' + encodeURIComponent(feedUrl + sep + '_=' + Date.now());
-      var res = await fetch(url);
-      if (!res.ok) throw new Error('rss2json ' + res.status);
-      return res.json();
-    }
-
-    function itemsFromXml(xmlDoc, limit, opts) {
-      opts = opts || {};
-      var out = [], items = xmlDoc.getElementsByTagName('item');
-      var n = Math.min(items.length, limit || 50);
-      for (var i = 0; i < n; i++) {
-        var it = items[i];
-        var rawTitle = textOf(it,'title') || 'Untitled';
-        var sourceNodes = it.getElementsByTagName('source');
-        var source = sourceNodes.length ? (sourceNodes[0].textContent||'').trim() : '';
-        var split = splitTitle(rawTitle);
-        var author = '';
-        var creators = it.getElementsByTagName('dc:creator');
-        if (creators.length) author = (creators[0].textContent||'').trim();
-        if (!author) author = textOf(it,'author');
-        var item = { title: split.headline||'Untitled', link: textOf(it,'link')||'#', publication: opts.pub||source||split.publication||'', author: author, pubDateISO: textOf(it,'pubDate')||'' };
-        if (opts.requireFilter && !titlePassesRequire(item.title)) continue;
-        out.push(item);
-      }
-      return out;
-    }
-
-    function itemsFromRss2Json(json, limit, opts) {
-      opts = opts || {};
-      var out = [], arr = (json && json.items) || [];
-      var n = Math.min(arr.length, limit || 50);
-      for (var i = 0; i < n; i++) {
-        var it = arr[i] || {};
-        var split = splitTitle(it.title||'');
-        var item = { title: split.headline||'Untitled', link: it.link||'#', publication: opts.pub||it.author||split.publication||'', author: it.author||'', pubDateISO: it.pubDate||'' };
-        if (opts.requireFilter && !titlePassesRequire(item.title)) continue;
-        out.push(item);
-      }
-      return out;
-    }
 
     async function fetchOneFeed(f) {
       var augUrl = f.url.indexOf('news.google.com') !== -1 ? f.url + '&hl=en&gl=US&ceid=US:en' : f.url;
-      var opts = { pub: f.pub, requireFilter: f.requireFilter };
-      try { return itemsFromXml(await tryFetchXML(augUrl), 50, opts); }
-      catch(e) {
-        try { return itemsFromRss2Json(await fetchRss2Json(augUrl, 50), 50, opts); }
-        catch(e2) { return []; }
-      }
+      try {
+        var sep = augUrl.indexOf('?') === -1 ? '?' : '&';
+        var proxy = 'https://corsproxy.io/?' + encodeURIComponent(augUrl + sep + '_=' + Date.now());
+        var res = await fetch(proxy);
+        var xml = new DOMParser().parseFromString(await res.text(), 'text/xml');
+        var out = [], items = xml.getElementsByTagName('item');
+        for (var i = 0; i < Math.min(items.length, 30); i++) {
+          var it = items[i];
+          var rawTitle = textOf(it,'title');
+          var split = splitTitle(rawTitle);
+          var item = { title: split.headline, link: textOf(it,'link'), publication: f.pub || split.publication, pubDateISO: textOf(it,'pubDate') };
+          if (f.requireFilter && !titlePassesRequire(item.title)) continue;
+          out.push(item);
+        }
+        return out;
+      } catch(e) { return []; }
     }
 
     function renderNews(items) {
@@ -534,146 +408,78 @@
       var filtered = (items||[]).filter(function(it){ return !isTitleBlocked(it.title); });
       var ordered = sortDesc(dedupeItems(filtered));
       var n = Math.min(ordered.length, 20);
-      if (!n) { list.innerHTML = '<li class="card">No items available right now.</li>'; return; }
       for (var i = 0; i < n; i++) {
         var it = ordered[i];
         var li = document.createElement('li');
         li.className = 'card';
-        var dt = it.pubDateISO ? formatDate(it.pubDateISO) : null;
-        var html = '<a class="title" href="'+(it.link||'#')+'" target="_blank" rel="noopener noreferrer">'+(it.title||'Untitled')+'</a>';
-        html += '<div class="meta">';
-        if (it.publication) html += '<div class="source">'+it.publication+'</div>';
-        if (it.author)      html += '<div class="author">'+it.author+'</div>';
-        if (dt)             html += '<div class="date">'+dt+'</div>';
-        html += '</div>';
-        li.innerHTML = html;
+        li.innerHTML = '<a class="title" href="'+it.link+'" target="_blank">'+it.title+'</a><div class="meta"><div class="source">'+it.publication+'</div><div class="date">'+formatDate(it.pubDateISO)+'</div></div>';
         list.appendChild(li);
       }
     }
 
-    var allNewsItems = [];
-
     async function loadNews() {
       var cache = loadCache(NEWS_CACHE_KEY);
-      if (cache.items && cache.items.length) { allNewsItems = cache.items; renderNews(allNewsItems); }
-      else { document.getElementById('feed2').innerHTML = '<li class="card" style="opacity:.6">Loading…</li>'; }
-
-      var t1 = await Promise.allSettled(FEEDS_TIER1.map(fetchOneFeed));
-      t1.forEach(function(r){ if (r.status==='fulfilled') allNewsItems = allNewsItems.concat(r.value); });
-      saveCache(NEWS_CACHE_KEY, allNewsItems);
-      renderNews(allNewsItems);
+      if (cache.items.length) renderNews(cache.items);
+      var all = [];
+      var results = await Promise.allSettled(FEEDS_TIER1.map(fetchOneFeed));
+      results.forEach(function(r){ if (r.status==='fulfilled') all = all.concat(r.value); });
+      saveCache(NEWS_CACHE_KEY, all);
+      renderNews(all);
       showStatus('', false, 'news-status');
-
-      setTimeout(async function() {
-        var t2 = await Promise.allSettled(FEEDS_TIER2.map(fetchOneFeed));
-        t2.forEach(function(r){ if (r.status==='fulfilled') allNewsItems = allNewsItems.concat(r.value); });
-        saveCache(NEWS_CACHE_KEY, allNewsItems);
-        renderNews(allNewsItems);
-      }, 1500);
     }
 
-    /* ── Refined Academia: arXiv API ────────────────────────────────────── */
+    /* ── Academia ── */
     var ARXIV_QUERIES = [
-      { q: 'all:"FPV drone" OR all:"FPV strike" OR all:"FPV attack" AND (all:military OR all:warfare)' },
-      { q: 'all:"small drones" OR all:"quadcopter" AND (all:combat OR all:battlefield OR all:tactical)' },
-      { q: 'all:"counter-UAS" OR all:"anti-drone" OR all:"C-UAS" AND (all:defense OR all:military)' }
+      { q: 'all:"FPV drone" OR all:"FPV strike" AND (all:military OR all:warfare)' },
+      { q: 'all:"small drones" OR all:"quadcopter" AND (all:combat OR all:battlefield)' },
+      { q: 'all:"counter-UAS" OR all:"anti-drone" AND (all:defense OR all:military)' }
     ];
 
     async function fetchArxiv(queryObj) {
-      var baseUrl = 'https://export.arxiv.org/api/query?' +
-        'search_query=' + encodeURIComponent(queryObj.q) +
-        '&start=0&max_results=12&sortBy=submittedDate&sortOrder=descending';
-      var urls = [
-        baseUrl,
-        'https://corsproxy.io/?' + baseUrl,
-        'https://api.allorigins.win/raw?url=' + encodeURIComponent(baseUrl)
-      ];
-      for (var i = 0; i < urls.length; i++) {
-        try {
-          var res = await fetch(urls[i]);
-          if (!res.ok) continue;
-          var xml = new DOMParser().parseFromString(await res.text(), 'text/xml');
-          if (xml.getElementsByTagName('parsererror').length) continue;
-          var entries = xml.getElementsByTagName('entry');
-          if (!entries.length) continue;
-          var out = [];
-          for (var j = 0; j < entries.length; j++) {
-            var entry = entries[j];
-            var title = (textOf(entry, 'title') || '').replace(/\s+/g, ' ').trim();
-            if (!title || title.toLowerCase() === 'error') continue;
-            var idEl = entry.getElementsByTagName('id')[0];
-            var link = idEl ? (idEl.textContent || '').trim() : '#';
-            var authorEls = entry.getElementsByTagName('author');
-            var authorNames = [];
-            for (var k = 0; k < Math.min(authorEls.length, 3); k++) {
-              var nameEl = authorEls[k].getElementsByTagName('name')[0];
-              if (nameEl) authorNames.push(nameEl.textContent.trim());
-            }
-            if (authorEls.length > 3) authorNames.push('et al.');
-            var pubDate = textOf(entry, 'published') || textOf(entry, 'updated') || '';
-            out.push({ title: title, link: link, publication: 'arXiv', author: authorNames.join(', '), pubDateISO: pubDate });
-          }
-          return out;
-        } catch(e) {}
-      }
-      return [];
+      try {
+        var url = 'https://export.arxiv.org/api/query?search_query=' + encodeURIComponent(queryObj.q) + '&max_results=10&sortBy=submittedDate&sortOrder=descending';
+        var res = await fetch('https://corsproxy.io/?' + encodeURIComponent(url));
+        var xml = new DOMParser().parseFromString(await res.text(), 'text/xml');
+        var entries = xml.getElementsByTagName('entry'), out = [];
+        for (var j = 0; j < entries.length; j++) {
+          var entry = entries[j];
+          var authorNames = [];
+          var authors = entry.getElementsByTagName('author');
+          for (var k=0; k<Math.min(authors.length,2); k++) authorNames.push(textOf(authors[k],'name'));
+          out.push({ title: textOf(entry, 'title').replace(/\s+/g, ' '), link: textOf(entry, 'id'), publication: 'arXiv', author: authorNames.join(', '), pubDateISO: textOf(entry, 'published') });
+        }
+        return out;
+      } catch(e) { return []; }
     }
 
     function renderAcademia(items) {
       var list = document.getElementById('feed3');
       list.innerHTML = '';
       var ordered = sortDesc(dedupeItems(items || []));
-      var n = Math.min(ordered.length, 20);
-      if (!n) {
-        list.innerHTML = '<li class="card academia-card">No papers found. <a href="https://arxiv.org/search/?searchtype=all&query=drone+military+warfare" target="_blank" rel="noopener noreferrer">Search arXiv ↗</a></li>';
-        return;
-      }
-      for (var i = 0; i < n; i++) {
+      for (var i = 0; i < Math.min(ordered.length, 20); i++) {
         var it = ordered[i];
         var li = document.createElement('li');
         li.className = 'card academia-card';
-        var dt = it.pubDateISO ? formatDate(it.pubDateISO) : null;
-        var html = '<a class="title" href="'+(it.link||'#')+'" target="_blank" rel="noopener noreferrer">'+(it.title||'Untitled')+'</a>';
-        html += '<div class="meta">';
-        if (it.publication) html += '<div class="source">'+it.publication+'</div>';
-        if (it.author)      html += '<div class="author">'+it.author+'</div>';
-        if (dt)             html += '<div class="date">'+dt+'</div>';
-        html += '</div>';
-        li.innerHTML = html;
+        li.innerHTML = '<a class="title" href="'+it.link+'" target="_blank">'+it.title+'</a><div class="meta"><div class="source">arXiv</div><div class="author">'+it.author+'</div><div class="date">'+formatDate(it.pubDateISO)+'</div></div>';
         list.appendChild(li);
       }
     }
 
-    var allAcadItems = [];
-
     async function loadAcademia() {
       var cache = loadCache(ACAD_CACHE_KEY);
-      if (cache.items && cache.items.length) { allAcadItems = cache.items; renderAcademia(allAcadItems); }
-      else { document.getElementById('feed3').innerHTML = '<li class="card academia-card" style="opacity:.6">Loading…</li>'; }
-
-      var results = await Promise.allSettled(ARXIV_QUERIES.map(fetchArxiv));
+      if (cache.items.length) renderAcademia(cache.items);
       var combined = [];
+      var results = await Promise.allSettled(ARXIV_QUERIES.map(fetchArxiv));
       results.forEach(function(r){ if (r.status==='fulfilled') combined = combined.concat(r.value); });
-
-      if (combined.length) {
-        allAcadItems = combined;
-        saveCache(ACAD_CACHE_KEY, allAcadItems);
-        renderAcademia(allAcadItems);
-        showStatus('', false, 'academia-status');
-      } else if (!allAcadItems.length) {
-        document.getElementById('feed3').innerHTML =
-          '<li class="card academia-card">Could not load papers. ' +
-          '<a href="https://arxiv.org/search/?searchtype=all&query=drone+military+warfare" target="_blank" rel="noopener noreferrer">Search arXiv ↗</a></li>';
-        showStatus('arXiv unavailable — try again shortly.', true, 'academia-status');
-      }
+      saveCache(ACAD_CACHE_KEY, combined);
+      renderAcademia(combined);
+      showStatus('', false, 'academia-status');
     }
 
     /* ── Init ── */
     updateSyncTime();
     loadNews();
     loadAcademia();
-    setInterval(function(){ allNewsItems=[]; loadNews(); }, 300000);
-    setInterval(function(){ allAcadItems=[]; loadAcademia(); }, 600000);
   </script>
 
 </body>

@@ -45,7 +45,7 @@
       list-style: none;
       padding: 0;
       max-height: 500px;
-      overflow-y: auto; /* makes it scroll like a rolling list */
+      overflow-y: auto; /* scroll like a rolling list */
     }
 
     li {
@@ -118,3 +118,170 @@
     /* Simple inline status message style */
     .status {
       color: #cfcfcf;
+      background: #2a2a2a;
+      border: 1px solid #3a3a3a;
+      border-radius: 8px;
+      padding: 0.75rem 1rem;
+      margin: 0.25rem 0 1rem 0;
+      font-size: 0.95rem;
+    }
+
+    .status.error {
+      border-color: #513333;
+      background: #2a1e1e;
+      color: #ffbcbc;
+    }
+
+    /* Responsive: stack columns on narrow screens */
+    @media (max-width: 900px) {
+      .columns {
+        flex-direction: column;
+      }
+    }
+  </style>
+</head>
+<body>
+
+  <noscript style="color:#ffbcbc;">This page requires JavaScript to load feeds.</noscript>
+
+  <h1>sUAS database</h1>
+
+  <div class="columns">
+    <div class="column">
+      <h2>social</h2>
+      <ul id="feed1"></ul>
+    </div>
+
+    <div class="column">
+      <h2>news</h2>
+      <div id="news-status" class="status" style="display:none;"></div>
+      <ul id="feed2" class="news-list"></ul>
+    </div>
+
+    <div class="column">
+      <h2>academia</h2>
+      <ul id="feed3"></ul>
+    </div>
+  </div>
+
+  <script>
+    // --------- Helpers (kept simple / widely supported) ---------
+    function safeText(htmlString) {
+      if (!htmlString) return "";
+      var div = document.createElement('div');
+      div.innerHTML = htmlString;
+      var txt = (div.textContent || div.innerText || "");
+      return txt.replace(/\s+/g, ' ').trim();
+    }
+
+    function formatDate(dateStr) {
+      try {
+        var d = new Date(dateStr);
+        if (isNaN(d.getTime())) return null;
+        return d.toLocaleDateString(undefined, { day: 'numeric', month: 'short', year: 'numeric' });
+      } catch (e) {
+        return null;
+      }
+    }
+
+    function showStatus(message, isError) {
+      var el = document.getElementById('news-status');
+      if (!el) return;
+      el.textContent = message || '';
+      el.className = isError ? 'status error' : 'status';
+      el.style.display = message ? 'block' : 'none';
+    }
+
+    // --------- Core feed loader ---------
+    async function loadRSS(feedUrl, elementId) {
+      var proxy = "https://api.rss2json.com/v1/api.json?rss_url=";
+      var encodedUrl = encodeURIComponent(feedUrl);
+      var list = document.getElementById(elementId);
+
+      // Loading state
+      if (elementId === "feed2") showStatus('Loading news…', false);
+      list.innerHTML = (elementId === "feed2")
+        ? '<li class="card" aria-busy="true" style="opacity:.8">Loading…</li>'
+        : '';
+
+      try {
+        var res = await fetch(proxy + encodedUrl);
+        if (!res || !res.ok) throw new Error('Network error ' + (res ? res.status : ''));
+
+        var data = await res.json();
+        list.innerHTML = ""; // clear
+
+        if (elementId === "feed2") showStatus('', false);
+
+        var isNews = (elementId === "feed2");
+        var items = (data && data.items) ? data.items : [];
+        var feedTitle = (data && data.feed && data.feed.title) ? data.feed.title : 'Source';
+
+        if (!items.length) {
+          var emptyLi = document.createElement('li');
+          emptyLi.className = isNews ? 'card' : '';
+          emptyLi.textContent = 'No items available right now.';
+          list.appendChild(emptyLi);
+          return;
+        }
+
+        items.forEach(function(item) {
+          var li = document.createElement('li');
+
+          var title = item && item.title ? item.title : 'Untitled';
+          var link = item && item.link ? item.link : '#';
+          var author = (item && item.author) ? item.author : feedTitle;
+          var dateText = (item && item.pubDate) ? formatDate(item.pubDate) : null;
+
+          if (isNews) {
+            li.className = 'card';
+            var description = safeText(item && item.description ? item.description : "");
+            var excerpt = description ? description.slice(0, 180) : "";
+            var hasExcerpt = excerpt.length > 40;
+
+            li.innerHTML =
+              '<a class="title" href="' + link + '" target="_blank" rel="noopener noreferrer">' + title + '</a>' +
+              '<div class="meta">' +
+                '<span>' + author + '</span>' +
+                (dateText ? '<span class="dot">•</span><span>' + dateText + '</span>' : '') +
+              '</div>' +
+              (hasExcerpt ? '<div class="excerpt">' + excerpt + '…</div>' : '');
+          } else {
+            // Simple list for other columns
+            li.innerHTML =
+              '<a href="' + link + '" target="_blank" rel="noopener noreferrer">' + title + '</a>';
+          }
+
+          list.appendChild(li);
+        });
+
+      } catch (err) {
+        console.error('RSS load error:', err);
+        list.innerHTML = "";
+        var li = document.createElement('li');
+        li.className = (elementId === "feed2") ? 'card' : '';
+        li.textContent = 'Could not load feed. Try again later.';
+        list.appendChild(li);
+        if (elementId === "feed2") {
+          showStatus('Could not load news (network issue or rate limiting). Will retry automatically.', true);
+        }
+      }
+    }
+
+    // --------- Configure & refresh ---------
+    // Google News RSS query
+    var newsFeed = "https://news.google.com/rss/search?q=sUAS+military+operations+OR+armed+drones";
+
+    function refreshFeeds() {
+      loadRSS(newsFeed, "feed2");
+      // When ready, you can add:
+      // loadRSS(feedUrlForSocial, "feed1");
+      // loadRSS(feedUrlForAcademia, "feed3");
+    }
+
+    refreshFeeds(); // initial load
+    setInterval(refreshFeeds, 300000); // every 5 minutes
+  </script>
+
+</body>
+</html>

@@ -211,7 +211,7 @@
     }
 
     async function fetchRSSViaRss2Json(feedUrl, count) {
-      var url = 'https://api.rss2json.com/v1/api.json?count=' + (count || 30) + '&rss_url=' + encodeURIComponent(feedUrl);
+      var url = 'https://api.rss2json.com/v1/api.json?count=' + (count || 20) + '&rss_url=' + encodeURIComponent(feedUrl);
       var res = await fetch(url);
       if (!res.ok) throw new Error('rss2json HTTP ' + res.status);
       return await res.json();
@@ -221,7 +221,7 @@
       var list = document.getElementById(elementId);
       list.innerHTML = '';
       var items = xmlDoc.getElementsByTagName('item');
-      var n = Math.min(items.length, maxItems || 30);
+      var n = Math.min(items.length, maxItems || 20);
 
       if (!n) {
         var emptyLi = document.createElement('li');
@@ -282,7 +282,7 @@
         return;
       }
 
-      var n = Math.min(items.length, 30);
+      var n = Math.min(items.length, 20);
 
       for (var i = 0; i < n; i++) {
         var item = items[i];
@@ -319,21 +319,21 @@
       showStatus('Loading news…', false);
       list.innerHTML = '<li class="card" aria-busy="true" style="opacity:.8">Loading…</li>';
 
-      // Updated Google News RSS query with your comprehensive terms
+      // Updated Google News RSS query with the comprehensive terms
       var feedUrl =
         'https://news.google.com/rss/search?q=' +
         encodeURIComponent('military sUAS use OR sUAS combat OR Armed sUAS OR Military FPV Drone OR FPV Drone attack OR FPV Drone strike OR Commercial drone attack OR commercial drone warfare OR sUAS warfare OR sUAS defence OR c-sUAS');
 
       try {
-        // Preferred path: raw RSS via AllOrigins (less likely to rate limit)
+        // Preferred path: raw RSS via AllOrigins
         var xml = await fetchRSSXmlViaAllOrigins(feedUrl);
-        renderNewsItemsFromXml(xml, 'feed2', 30);
+        renderNewsItemsFromXml(xml, 'feed2', 20);
         showStatus('', false); // hide status
       } catch (e1) {
         console.warn('AllOrigins path failed, trying rss2json fallback:', e1);
         try {
-          // Fallback path: rss2json with count=30
-          var json = await fetchRSSViaRss2Json(feedUrl, 30);
+          // Fallback path: rss2json with count=20
+          var json = await fetchRSSViaRss2Json(feedUrl, 20);
           renderNewsItemsFromRss2Json(json, 'feed2');
           showStatus('', false);
         } catch (e2) {

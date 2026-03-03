@@ -28,9 +28,8 @@
     .columns { display: flex; justify-content: space-between; gap: 2rem; }
     .column { flex: 1; min-width: 0; }
 
-    /* Let lists grow with the page (no fixed 500px cap) */
+    /* Let lists grow with the page (no fixed cap) */
     ul { list-style: none; padding: 0; }
-
     li { margin-bottom: 1rem; }
 
     a { text-decoration: none; color: #4da3ff; }
@@ -42,7 +41,6 @@
       grid-template-columns: 1fr;
       gap: 0.8rem;
       padding-right: 0.25rem;
-      /* Ensure the news list itself doesn't clip; page scrolls instead */
       max-height: none;
       overflow: visible;
     }
@@ -75,7 +73,7 @@
     .meta {
       margin-top: 0.55rem;
       display: flex;
-      flex-direction: column;            /* stack lines: publication, author, date */
+      flex-direction: column;            /* publication, author, date */
       align-items: center;
       gap: 0.35rem;
     }
@@ -124,8 +122,7 @@
 
   <script>
     /* ---------------- CONFIG: Query & Feed URL ----------------
-       This query targets small/FPV/commercial drones in warfare and excludes big platforms.
-       It also adds a recency window (last 30 days) to increase throughput.
+       Small/FPV/commercial drones in warfare; exclude big platforms; last 30 days.
     */
     var QUERY = [
       '(' +
@@ -137,12 +134,10 @@
       '(' +
         'warfare OR combat OR attack OR strike OR battlefield OR military OR infantry OR "front-line"' +
       ')' +
-      ' when:30d ' + // last 30 days for volume
-      // Exclude big drones / strategic systems
+      ' when:30d ' +
       ' -shahed -"shahed-136" -"shahed 131" -TB2 -Bayraktar -MQ-9 -Reaper -"Wing Loong" -HALE -MALE -"long-range" -"cruise missile"'
     ].join('');
 
-    // Build the base Google News RSS URL (we’ll add edition params in proxies)
     var FEED_URL = 'https://news.google.com/rss/search?q=' + encodeURIComponent(QUERY);
 
     /* ---------------- Helpers ---------------- */
@@ -162,7 +157,7 @@
       el.style.display = message ? 'block' : 'none';
     }
 
-    // Trim title before first hyphen / em dash → publication after separator
+    // Trim title before first hyphen / em dash
     function splitTitle(title) {
       if (!title) return { headline: '', publication: '' };
       var hyphenIdx = title.indexOf(' - ');
@@ -189,11 +184,11 @@
     }
 
     /* ---------------- LocalStorage cache (versioned & URL‑tied) ---------------- */
-    var CACHE_VERSION = 'v5_20260303';
+    var CACHE_VERSION = 'v6_sort_20260303';
     var CACHE_BASE = 'news_cache_' + CACHE_VERSION + '_';
     var CACHE_KEY = CACHE_BASE + btoa(FEED_URL).slice(0, 16);
     var CACHE_TIME_KEY = CACHE_KEY + '_time';
-    var CACHE_TTL_MS = 2 * 60 * 60 * 1000; // consider 'fresh' for 2 hours
+    var CACHE_TTL_MS = 2 * 60 * 60 * 1000; // fresh for 2 hours
 
     function saveCache(items) {
       try {
@@ -214,13 +209,27 @@
       }
     }
 
+    /* ---------------- Sorting (Newest at top) ---------------- */
+    function sortByDateDesc(items) {
+      // Create a shallow copy to avoid mutating the original array
+      return (items || []).slice().sort(function(a, b) {
+        var ta = a && a.pubDateISO ? new Date(a.pubDateISO).getTime() : 0;
+        var tb = b && b.pubDateISO ? new Date(b.pubDateISO).getTime() : 0;
+        return tb - ta; // newest first
+      });
+    }
+
     /* ---------------- Normalized rendering ----------------
        items: [{title, link, publication, author, pubDateISO}]
     */
     function renderNormalizedItems(items, elementId, maxItems) {
       var list = document.getElementById(elementId);
       list.innerHTML = '';
-      var n = Math.min(items.length, maxItems || 20);
+
+      // Sort newest → oldest before rendering
+      var ordered = sortByDateDesc(items);
+      var n = Math.min(ordered.length, maxItems || 20);
+
       if (!n) {
         var emptyLi = document.createElement('li');
         emptyLi.className = 'card';
@@ -228,8 +237,9 @@
         list.appendChild(emptyLi);
         return;
       }
+
       for (var i = 0; i < n; i++) {
-        var it = items[i];
+        var it = ordered[i];
         var displayTitle = it.title || 'Untitled';
         var link = it.link || '#';
         var publication = it.publication || '';
@@ -254,10 +264,9 @@
 
     /* ---------------- Fetch via multiple proxies (XML path) ---------------- */
     function buildProxyUrls(feedUrl) {
-      // Use a high‑volume edition by default to increase article count.
-      // Add cache‑buster so proxies fetch fresh content.
+      // Use US edition for volume; cache‑buster so proxies fetch fresh content.
       var cacheBust = '&_=' + Date.now();
-      var augmented = feedUrl + '&hl=en&gl=US&ceid=US:en' + cacheBust; // broaden to US edition for throughput
+      var augmented = feedUrl + '&hl=en&gl=US&ceid=US:en' + cacheBust;
       return [
         'https://cors.isomorphic-git.org/' + augmented,                                 // Proxy 1
         'https://corsproxy.io/?' + augmented,                                           // Proxy 2
@@ -361,23 +370,22 @@
       list.innerHTML = '<li class="card" aria-busy="true" style="opacity:.8">Loading…</li>';
 
       try {
-        // Preferred path: multiple CORS proxies fetching RAW RSS XML
+        // Preferred: fetch RAW RSS XML via proxies
         var xml = await tryFetchXMLWithProxies(FEED_URL);
-        var items = itemsFromXml(xml, 20);
+        var items = itemsFromXml(xml, 100); // pull as many as available, we’ll cap and sort later
         saveCache(items);
-        renderNormalizedItems(items, 'feed2', 20);
-        showStatus('', false); // hide
+        renderNormalizedItems(items, 'feed2', 20); // sorted newest-first inside renderer
+        showStatus('', false);
       } catch (e1) {
         console.warn('XML proxy path failed, trying rss2json fallback:', e1);
         try {
-          var json = await fetchRSSViaRss2Json(FEED_URL, 20);
-          var itemsJ = itemsFromRss2Json(json, 20);
+          var json = await fetchRSSViaRss2Json(FEED_URL, 100);
+          var itemsJ = itemsFromRss2Json(json, 100);
           saveCache(itemsJ);
           renderNormalizedItems(itemsJ, 'feed2', 20);
           showStatus('', false);
         } catch (e2) {
           console.error('rss2json fallback failed:', e2);
-          // Fall back to cache if we have it
           var cache = loadCache();
           if (cache.items && cache.items.length) {
             renderNormalizedItems(cache.items, 'feed2', 20);

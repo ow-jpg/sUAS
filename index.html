@@ -99,28 +99,28 @@
     .card .meta {
       margin-top: 0.55rem;
       display: flex;
-      flex-direction: column;            /* stack lines: source, author, date */
+      flex-direction: column;            /* stack lines: publication, author, date */
       align-items: center;
       gap: 0.35rem;
     }
 
     .card .meta .source {
-      color: #f1e9fa;                    /* publication line */
+      color: #f1e9fa;                    /* publication line (2nd) */
       font-size: 0.9rem;
       font-weight: 600;
     }
 
     .card .meta .author {
-      color: #e9dbf6;                    /* author line */
+      color: #e9dbf6;                    /* author line (3rd) */
       font-size: 0.88rem;
     }
 
     .card .meta .date {
-      color: #d9c8ee;                    /* date line (under all) */
+      color: #d9c8ee;                    /* date line (4th) */
       font-size: 0.86rem;
     }
 
-    /* Simple inline status message style */
+    /* Status message */
     .status {
       color: #cfcfcf;
       background: #2a2a2a;
@@ -170,7 +170,7 @@
   </div>
 
   <script>
-    // --------- Helpers (simple / widely supported) ---------
+    // --------- Helpers ---------
     function formatDate(dateStr) {
       try {
         var d = new Date(dateStr);
@@ -189,30 +189,37 @@
       el.style.display = message ? 'block' : 'none';
     }
 
-    // Try to infer publication from the title if item.author is missing.
-    // Google News often formats as "Headline - Outlet" or "Headline — Outlet".
-    function inferPublicationFromTitle(title) {
-      if (!title) return '';
-      var pub = '';
-      // em dash
-      var emDashIndex = title.lastIndexOf(' — ');
-      if (emDashIndex !== -1 && emDashIndex + 3 < title.length) {
-        pub = title.slice(emDashIndex + 3).trim();
-      } else {
-        // hyphen
-        var hyphenIndex = title.lastIndexOf(' - ');
-        if (hyphenIndex !== -1 && hyphenIndex + 3 < title.length) {
-          pub = title.slice(hyphenIndex + 3).trim();
-        }
+    // Split a Google News style title "Headline - Outlet" or "Headline — Outlet"
+    // Returns {headline, publication}
+    function splitTitle(title) {
+      if (!title) return { headline: '', publication: '' };
+
+      // Prefer splitting at the FIRST ' - ' (as you requested)
+      var hyphenIdx = title.indexOf(' - ');
+      if (hyphenIdx !== -1) {
+        return {
+          headline: title.slice(0, hyphenIdx).trim(),
+          publication: title.slice(hyphenIdx + 3).trim()
+        };
       }
-      // Basic sanity check so we don't show the full title as a "publication"
-      if (pub && pub.length >= 2 && pub.length <= 60) return pub;
-      return '';
+
+      // Fallback: FIRST ' — ' (em dash) if present
+      var emDashIdx = title.indexOf(' — ');
+      if (emDashIdx !== -1) {
+        return {
+          headline: title.slice(0, emDashIdx).trim(),
+          publication: title.slice(emDashIdx + 3).trim()
+        };
+      }
+
+      // No delimiter found
+      return { headline: title.trim(), publication: '' };
     }
 
     // --------- Core feed loader ---------
     async function loadRSS(feedUrl, elementId) {
-      var proxy = "https://api.rss2json.com/v1/api.json?rss_url=";
+      // Ask for up to 30 items from rss2json
+      var proxyBase = "https://api.rss2json.com/v1/api.json?count=30&rss_url=";
       var encodedUrl = encodeURIComponent(feedUrl);
       var list = document.getElementById(elementId);
 
@@ -223,7 +230,7 @@
         : '';
 
       try {
-        var res = await fetch(proxy + encodedUrl);
+        var res = await fetch(proxyBase + encodedUrl);
         if (!res || !res.ok) throw new Error('Network error ' + (res ? res.status : ''));
 
         var data = await res.json();
@@ -245,27 +252,27 @@
         items.forEach(function(item) {
           var li = document.createElement('li');
 
-          var title = item && item.title ? item.title : 'Untitled';
+          var rawTitle = item && item.title ? item.title : 'Untitled';
+          var split = splitTitle(rawTitle);
+          var displayTitle = split.headline || 'Untitled';    // trimmed at first hyphen/em dash
+          var publication = split.publication || '';           // second line
           var link = item && item.link ? item.link : '#';
-          var author = (item && item.author) ? item.author : ''; // Do not show feed title
-          var publication = author || inferPublicationFromTitle(title); // Prefer author as "source" if present
-          var dateText = (item && item.pubDate) ? formatDate(item.pubDate) : null;
+          var author = (item && item.author) ? item.author : ''; // third line (if present)
+          var dateText = (item && item.pubDate) ? formatDate(item.pubDate) : null; // fourth line
 
           if (isNews) {
             li.className = 'card';
 
             var html = '';
             // Title (top, centered)
-            html += '<a class="title" href="' + link + '" target="_blank" rel="noopener noreferrer">' + title + '</a>';
+            html += '<a class="title" href="' + link + '" target="_blank" rel="noopener noreferrer">' + displayTitle + '</a>';
 
-            // Second line: publication (if we can infer/find one)
-            // Third line: author (only if present AND distinct from publication)
-            // Fourth line: date (if present)
+            // Meta block (publication, author, date each on its own line)
             html += '<div class="meta">';
             if (publication) {
               html += '<div class="source">' + publication + '</div>';
             }
-            if (author && author !== publication) {
+            if (author) {
               html += '<div class="author">' + author + '</div>';
             }
             if (dateText) {
@@ -277,7 +284,7 @@
           } else {
             // Simple list for other columns
             li.innerHTML =
-              '<a href="' + link + '" target="_blank" rel="noopener noreferrer">' + title + '</a>';
+              '<a href="' + link + '" target="_blank" rel="noopener noreferrer">' + displayTitle + '</a>';
           }
 
           list.appendChild(li);
@@ -298,7 +305,7 @@
 
     // --------- Configure & refresh ---------
     // Google News RSS query
-    var newsFeed = "https://news.google.com/rss/search?q=sUAS+OR+armed+drones+OR+drone+warfare";
+    var newsFeed = "https://news.google.com/rss/search?q=sUAS+military+operations+OR+armed+drones";
 
     function refreshFeeds() {
       loadRSS(newsFeed, "feed2");

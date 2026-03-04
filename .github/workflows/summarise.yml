@@ -19,11 +19,35 @@ jobs:
           GROQ_API_KEY: ${{ secrets.GROQ_API_KEY }}
         run: |
           python3 << 'EOF'
-          import urllib.request, urllib.parse, xml.etree.ElementTree as ET, json, os, datetime
+          import urllib.request, urllib.parse, urllib.error, xml.etree.ElementTree as ET, json, os, datetime
 
           api_key = os.environ.get("GROQ_API_KEY", "")
           print(f"API key present: {bool(api_key)} (length {len(api_key)})")
 
+          # ── Diagnostic test call first ──
+          print("Testing Groq connection...")
+          test_req = urllib.request.Request(
+            "https://api.groq.com/openai/v1/chat/completions",
+            data=json.dumps({
+              "model": "llama-3.3-70b-versatile",
+              "messages": [{"role": "user", "content": "Say hello in one word."}],
+              "max_tokens": 10
+            }).encode(),
+            headers={
+              "Content-Type": "application/json",
+              "Authorization": f"Bearer {api_key}"
+            }
+          )
+          try:
+            with urllib.request.urlopen(test_req) as r:
+              print("Groq test SUCCESS:", r.read().decode()[:200])
+          except urllib.error.HTTPError as e:
+            print(f"Groq test HTTP Error {e.code}: {e.reason}")
+            print("Response body:", e.read().decode())
+          except Exception as e:
+            print(f"Groq test other error: {e}")
+
+          # ── Fetch headlines ──
           QUERY_A = '"FPV drone" OR "FPV strike" OR "small drone" OR "quadcopter" military combat warfare Ukraine'
           QUERY_B = '"small UAS" OR "sUAS" OR "counter-drone" OR "anti-drone" military defense'
 
@@ -96,6 +120,12 @@ jobs:
               data = json.loads(r.read())
             summary = data["choices"][0]["message"]["content"].strip()
             print(f"Summary: {summary[:120]}...")
+          except urllib.error.HTTPError as e:
+            print(f"Groq API error: HTTP Error {e.code}: {e.reason}")
+            print("Response body:", e.read().decode())
+            with open("summary.json", "w") as f:
+              json.dump({"summary": "Summary unavailable today — API error.", "updated": updated}, f)
+            exit(0)
           except Exception as e:
             print(f"Groq API error: {e}")
             with open("summary.json", "w") as f:

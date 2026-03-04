@@ -70,9 +70,9 @@ jobs:
           print("Headlines:\n" + headline_text)
 
           prompt = (
-            "You are a concise defence analyst specialising in small UAS (unmanned aerial systems). "
-            "Given these recent sUAS news headlines, write a clear 3-5 sentence intelligence summary "
-            "covering the key themes and developments. Be factual, direct, and use plain English.\n\n"
+            "You are a concise defence analyst specialising in small UAS (unmanned aerial systems, only small-sized commercial quadcopters and fpv drones). "
+            "Given the most recent sUAS news headlines, write a clear 3-5 sentence intelligence summary, not trying to be groundbreaking or outlining the entire situation, just covering what was stated in those articles "
+            "Be factual, direct, and use plain English.\n\n"
             "Headlines:\n" + headline_text
           )
 

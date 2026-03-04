@@ -71,9 +71,9 @@ jobs:
 
           prompt = (
             "You are a defence analyst tracking small UAS (small commercial quadcopters and FPV drones only). "
-            "Based strictly on the following news headlines from the last 24 hours, write a 3-5 sentence summary. "
-            "Start with the phrase 'In the last 24 hours,'. "
-            "Focus only on specific recent developments, fine details, and new information mentioned in these headlines — do not give broad overviews, do not summarise the wider conflict, do not draw sweeping conclusions. "
+            "Based strictly on the following recent news headlines, write a 3-5 sentence summary. "
+            "Start with the phrase 'News articles published within the previous 24 hours have outlined'. "
+            "Focus only on specific developments, fine details, and new information mentioned in these headlines — do not give broad overviews, do not summarise the wider conflict, do not draw sweeping conclusions. "
             "If a headline mentions a specific incident, weapon, tactic, or figure, include it. "
             "Be factual, specific, and concise.\n\n"
             "Headlines:\n" + headline_text

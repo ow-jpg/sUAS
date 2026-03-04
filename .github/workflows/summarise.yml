@@ -2,8 +2,8 @@ name: Daily News Summary
 
 on:
   schedule:
-    - cron: '0 6 * * *'   # runs every day at 6am UTC
-  workflow_dispatch:        # lets you trigger it manually too
+    - cron: '0 23 * * *'   # 11pm UTC = 9am AEDT (Canberra)
+  workflow_dispatch:         # lets you also trigger manually
 
 jobs:
   summarise:
@@ -19,57 +19,72 @@ jobs:
           GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
         run: |
           python3 << 'EOF'
-          import urllib.request, xml.etree.ElementTree as ET, json, re
+          import urllib.request, xml.etree.ElementTree as ET, json, os, datetime
 
           FEEDS = [
             "https://twz.com/feed",
             "https://www.suasnews.com/feed",
           ]
 
+          REQUIRE = ['fpv','small drone','quadcopter','suas','micro drone','nano drone','drone swarm','dji','drone warfare','drone strike','counter-drone','anti-drone','counter-uas','uncrewed']
+          BLOCK   = ['shahed','tb2','bayraktar','mq-9','reaper','global hawk','drone light show','drone show','amazon drone','drone photography','best drone','delivery drone']
+
           headlines = []
           for url in FEEDS:
             try:
-              with urllib.request.urlopen(url, timeout=10) as r:
+              req = urllib.request.Request(url, headers={"User-Agent": "Mozilla/5.0"})
+              with urllib.request.urlopen(req, timeout=10) as r:
                 tree = ET.fromstring(r.read())
               for item in tree.iter('item'):
-                t = item.findtext('title') or ''
-                if t:
-                  headlines.append(t.strip())
+                t = (item.findtext('title') or '').strip()
+                tl = t.lower()
+                if not t: continue
+                if any(b in tl for b in BLOCK): continue
+                if any(r in tl for r in REQUIRE):
+                  headlines.append(t)
             except Exception as e:
               print(f"Feed error: {e}")
 
           headlines = list(dict.fromkeys(headlines))[:30]
+          if not headlines:
+            print("No headlines found.")
+            exit(0)
+
           headline_text = "\n".join(f"- {h}" for h in headlines)
-
-          prompt = f"""You are a defence analyst. Given these recent sUAS (small drone) news headlines, write a concise 3-5 sentence intelligence summary of the key themes and developments. Be factual and direct.\n\nHeadlines:\n{headline_text}"""
-
-          payload = json.dumps({"contents": [{"parts": [{"text": prompt}]}]}).encode()
-          req = urllib.request.Request(
-            f"https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash-latest:generateContent?key=$GEMINI_API_KEY",
-            data=payload, headers={"Content-Type": "application/json"}
+          prompt = (
+            "You are a concise defence analyst specialising in small UAS (unmanned aerial systems). "
+            "Given these recent sUAS news headlines, write a clear 3-5 sentence intelligence summary "
+            "covering the key themes and developments. Be factual, direct, and use plain English.\n\n"
+            "Headlines:\n" + headline_text
           )
-          import os
+
+          payload = json.dumps({
+            "contents": [{"parts": [{"text": prompt}]}],
+            "generationConfig": {"temperature": 0.4, "maxOutputTokens": 300}
+          }).encode()
+
           api_key = os.environ["GEMINI_API_KEY"]
           req = urllib.request.Request(
             f"https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash-latest:generateContent?key={api_key}",
-            data=payload, headers={"Content-Type": "application/json"}
+            data=payload,
+            headers={"Content-Type": "application/json"}
           )
           with urllib.request.urlopen(req) as r:
             data = json.loads(r.read())
 
-          summary = data["candidates"][0]["content"]["parts"][0]["text"]
+          summary = data["candidates"][0]["content"]["parts"][0]["text"].strip()
+          updated = datetime.datetime.utcnow().strftime("%-d %b %Y, %H:%M UTC")
 
           with open("summary.json", "w") as f:
-            import datetime
-            json.dump({"summary": summary, "updated": datetime.datetime.utcnow().strftime("%d %b %Y, %H:%M UTC")}, f)
+            json.dump({"summary": summary, "updated": updated}, f)
 
-          print("Summary written.")
+          print("Done:", summary[:80])
           EOF
 
-      - name: Commit summary
+      - name: Commit summary.json
         run: |
           git config user.name "github-actions"
           git config user.email "actions@github.com"
           git add summary.json
-          git diff --cached --quiet || git commit -m "chore: daily news summary update"
+          git diff --cached --quiet || git commit -m "chore: daily sUAS news summary"
           git push

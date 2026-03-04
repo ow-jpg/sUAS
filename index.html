@@ -15,7 +15,6 @@
 
     body { padding: 2rem; }
 
-    /* ── Header Style ── */
     .header-container {
       display: flex;
       justify-content: space-between;
@@ -24,32 +23,30 @@
       border-bottom: 2px solid #333;
       padding-bottom: 12px;
     }
-    .header-container h1 { 
-      margin: 0; 
-      font-size: 1.6rem; 
-      letter-spacing: 1px; 
-      font-weight: bold; 
-      color: #fff; 
-      /* Casing is handled in the HTML text */
+    .header-container h1 {
+      margin: 0;
+      font-size: 1.6rem;
+      letter-spacing: 1px;
+      font-weight: bold;
+      color: #fff;
       text-shadow: 0 0 8px rgba(77, 163, 255, 0.15);
     }
     .header-info { text-align: right; font-size: 0.72rem; color: #888; display: flex; flex-direction: column; gap: 4px; }
     .status-indicator { color: #44ff44; font-weight: bold; }
 
-    /* ── Vertical Alignment Fix ── */
     .col-header {
       display: flex;
       justify-content: space-between;
-      align-items: center; /* Ensures text and button are centered on the same line */
+      align-items: center;
       border-bottom: 1px solid #444;
       margin-bottom: 1rem;
-      height: 32px; /* Fixed height forces all three columns to align perfectly */
+      height: 32px;
     }
-    
-    .col-header h2 { 
-      border: none; 
-      margin: 0; 
-      padding: 0; 
+
+    .col-header h2 {
+      border: none;
+      margin: 0;
+      padding: 0;
       font-size: 1.1rem;
       text-transform: lowercase;
     }
@@ -89,7 +86,6 @@
     .scroll-wrap::-webkit-scrollbar-thumb { background: #3a3a3a; border-radius: 4px; }
     .scroll-wrap::-webkit-scrollbar-thumb:hover { background: #5a4370; }
 
-    /* ── X column ── */
     #x-embed-container {
       display: none;
       border-radius: 10px;
@@ -163,6 +159,25 @@
     }
     .status.error { border-color: #513333; background: #2a1e1e; color: #ffbcbc; }
 
+    /* ── AI Summary box ── */
+    .ai-summary-box {
+      background: #1a2a1a;
+      border: 1px solid #2a4a2a;
+      border-radius: 10px;
+      padding: 0.9rem 1rem;
+      margin-bottom: 1rem;
+      font-size: 0.84rem;
+      line-height: 1.65;
+      color: #b8d4b8;
+    }
+    .ai-summary-label {
+      color: #6abf6a;
+      font-size: 0.72rem;
+      font-weight: bold;
+      letter-spacing: 0.5px;
+      margin-bottom: 0.6rem;
+    }
+
     @media (max-width: 900px) { .columns { flex-direction: column; } }
   </style>
 </head>
@@ -204,6 +219,13 @@
       <div class="col-header">
         <h2>news</h2>
       </div>
+
+      <!-- AI Summary box -->
+      <div class="ai-summary-box" id="ai-summary-box" style="display:none;">
+        <div class="ai-summary-label" id="ai-summary-label">AI SUMMARY</div>
+        <div id="ai-summary-text"></div>
+      </div>
+
       <div id="news-status" class="status" style="display:none;"></div>
       <div class="scroll-wrap">
         <ul id="feed2" class="news-list"></ul>
@@ -355,6 +377,21 @@
       } catch(e) { return { items: [], when: 0, fresh: false }; }
     }
 
+    /* ── AI Summary loader ── */
+    function loadSummary() {
+      fetch('summary.json?_=' + Date.now())
+        .then(function(r) { return r.json(); })
+        .then(function(d) {
+          if (!d || !d.summary) return;
+          document.getElementById('ai-summary-label').textContent = 'AI SUMMARY · ' + (d.updated || '');
+          document.getElementById('ai-summary-text').textContent = d.summary;
+          document.getElementById('ai-summary-box').style.display = 'block';
+        })
+        .catch(function() {
+          /* summary.json not yet generated — silently hide the box */
+        });
+    }
+
     /* ── News ── */
     var TITLE_REQUIRE_TERMS = ['fpv','small drone','quadcopter','commercial drone','suas','micro drone','nano drone','drone swarm','dji','drone warfare','drone strike','counter-drone','anti-drone','counter-uas','drone pilot','drone operator','uncrewed','drone kamikaze'];
     var TITLE_BLOCKLIST = ['shahed','geran','tb2','bayraktar','akinci','mq-9','reaper','global hawk','long-range drone','strategic drone','drone light show','drone show','amazon drone','drone photography','best drone','drone review','firefighting drone','agriculture drone','medical drone','package delivery','delivery drone'];
@@ -468,6 +505,7 @@
 
     /* ── Init ── */
     updateSyncTime();
+    loadSummary();
     loadNews();
     loadAcademia();
   </script>

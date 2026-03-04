@@ -70,9 +70,12 @@ jobs:
           print("Headlines:\n" + headline_text)
 
           prompt = (
-            "You are a concise defence analyst specialising in small UAS (unmanned aerial systems, only small-sized commercial quadcopters and fpv drones). "
-            "Given the most recent sUAS news headlines, write a clear 3-5 sentence intelligence summary, not trying to be groundbreaking or outlining the entire situation, just covering what was stated in those articles "
-            "Be factual, direct, and use plain English.\n\n"
+            "You are a defence analyst tracking small UAS (small commercial quadcopters and FPV drones only). "
+            "Based strictly on the following news headlines from the last 24 hours, write a 3-5 sentence summary. "
+            "Start with the phrase 'In the last 24 hours,'. "
+            "Focus only on specific recent developments, fine details, and new information mentioned in these headlines — do not give broad overviews, do not summarise the wider conflict, do not draw sweeping conclusions. "
+            "If a headline mentions a specific incident, weapon, tactic, or figure, include it. "
+            "Be factual, specific, and concise.\n\n"
             "Headlines:\n" + headline_text
           )
 

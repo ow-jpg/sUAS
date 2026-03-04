@@ -159,13 +159,12 @@
     }
     .status.error { border-color: #513333; background: #2a1e1e; color: #ffbcbc; }
 
-    /* ── AI Summary box ── */
     .ai-summary-box {
       background: #1a2a1a;
       border: 1px solid #2a4a2a;
       border-radius: 10px;
       padding: 0.9rem 1rem;
-      margin-bottom: 1rem;
+      margin-bottom: 0;
       font-size: 0.84rem;
       line-height: 1.65;
       color: #b8d4b8;
@@ -176,6 +175,11 @@
       font-weight: bold;
       letter-spacing: 0.5px;
       margin-bottom: 0.6rem;
+    }
+    .summary-divider {
+      border: none;
+      border-top: 1px solid #2a2a2a;
+      margin: 0.85rem 0;
     }
 
     @media (max-width: 900px) { .columns { flex-direction: column; } }
@@ -220,14 +224,14 @@
         <h2>news</h2>
       </div>
 
-      <!-- AI Summary box -->
       <div class="ai-summary-box" id="ai-summary-box" style="display:none;">
         <div class="ai-summary-label" id="ai-summary-label">AI SUMMARY</div>
         <div id="ai-summary-text"></div>
       </div>
+      <hr class="summary-divider" id="summary-divider" style="display:none;">
 
       <div id="news-status" class="status" style="display:none;"></div>
-      <div class="scroll-wrap">
+      <div class="scroll-wrap" style="max-height:380px;">
         <ul id="feed2" class="news-list"></ul>
       </div>
     </div>
@@ -245,7 +249,6 @@
   </div>
 
   <script>
-    /* ── Account cards ── */
     var ACCOUNTS = [
       { handle: 'UAWeapons',       desc: 'Ukrainian weapons & drone footage tracker',                                          tag: 'OSINT · battlefield' },
       { handle: 'UAControlMap',    desc: 'Conflict mapping & drone incident tracking',                                         tag: 'OSINT · mapping' },
@@ -290,7 +293,6 @@
       document.body.appendChild(script);
     });
 
-    /* ── Helpers ── */
     function formatDate(dateStr) {
       try {
         var d = new Date(dateStr);
@@ -360,7 +362,6 @@
       return (items || []).slice().sort(function(a, b) { return new Date(b.pubDateISO || 0) - new Date(a.pubDateISO || 0); });
     }
 
-    /* ── Cache ── */
     var NEWS_CACHE_KEY = 'news_cache_v15';
     var ACAD_CACHE_KEY = 'acad_cache_v4';
     var CACHE_TTL_MS   = 2 * 60 * 60 * 1000;
@@ -377,7 +378,6 @@
       } catch(e) { return { items: [], when: 0, fresh: false }; }
     }
 
-    /* ── AI Summary loader ── */
     function loadSummary() {
       fetch('summary.json?_=' + Date.now())
         .then(function(r) { return r.json(); })
@@ -386,13 +386,11 @@
           document.getElementById('ai-summary-label').textContent = 'AI SUMMARY · ' + (d.updated || '');
           document.getElementById('ai-summary-text').textContent = d.summary;
           document.getElementById('ai-summary-box').style.display = 'block';
+          document.getElementById('summary-divider').style.display = 'block';
         })
-        .catch(function() {
-          /* summary.json not yet generated — silently hide the box */
-        });
+        .catch(function() {});
     }
 
-    /* ── News ── */
     var TITLE_REQUIRE_TERMS = ['fpv','small drone','quadcopter','commercial drone','suas','micro drone','nano drone','drone swarm','dji','drone warfare','drone strike','counter-drone','anti-drone','counter-uas','drone pilot','drone operator','uncrewed','drone kamikaze'];
     var TITLE_BLOCKLIST = ['shahed','geran','tb2','bayraktar','akinci','mq-9','reaper','global hawk','long-range drone','strategic drone','drone light show','drone show','amazon drone','drone photography','best drone','drone review','firefighting drone','agriculture drone','medical drone','package delivery','delivery drone'];
 
@@ -455,7 +453,6 @@
       showStatus('', false, 'news-status');
     }
 
-    /* ── Academia ── */
     var ARXIV_QUERIES = [
       { q: 'all:"FPV drone" OR all:"FPV strike" AND (all:military OR all:warfare)' },
       { q: 'all:"small drones" OR all:"quadcopter" AND (all:combat OR all:battlefield)' },
@@ -503,7 +500,6 @@
       showStatus('', false, 'academia-status');
     }
 
-    /* ── Init ── */
     updateSyncTime();
     loadSummary();
     loadNews();

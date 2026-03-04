@@ -1,1 +1,75 @@
+name: Daily News Summary
 
+on:
+  schedule:
+    - cron: '0 6 * * *'   # runs every day at 6am UTC
+  workflow_dispatch:        # lets you trigger it manually too
+
+jobs:
+  summarise:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Fetch RSS and summarise with Gemini
+        env:
+          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+        run: |
+          python3 << 'EOF'
+          import urllib.request, xml.etree.ElementTree as ET, json, re
+
+          FEEDS = [
+            "https://twz.com/feed",
+            "https://www.suasnews.com/feed",
+          ]
+
+          headlines = []
+          for url in FEEDS:
+            try:
+              with urllib.request.urlopen(url, timeout=10) as r:
+                tree = ET.fromstring(r.read())
+              for item in tree.iter('item'):
+                t = item.findtext('title') or ''
+                if t:
+                  headlines.append(t.strip())
+            except Exception as e:
+              print(f"Feed error: {e}")
+
+          headlines = list(dict.fromkeys(headlines))[:30]
+          headline_text = "\n".join(f"- {h}" for h in headlines)
+
+          prompt = f"""You are a defence analyst. Given these recent sUAS (small drone) news headlines, write a concise 3-5 sentence intelligence summary of the key themes and developments. Be factual and direct.\n\nHeadlines:\n{headline_text}"""
+
+          payload = json.dumps({"contents": [{"parts": [{"text": prompt}]}]}).encode()
+          req = urllib.request.Request(
+            f"https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash-latest:generateContent?key=$GEMINI_API_KEY",
+            data=payload, headers={"Content-Type": "application/json"}
+          )
+          import os
+          api_key = os.environ["GEMINI_API_KEY"]
+          req = urllib.request.Request(
+            f"https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash-latest:generateContent?key={api_key}",
+            data=payload, headers={"Content-Type": "application/json"}
+          )
+          with urllib.request.urlopen(req) as r:
+            data = json.loads(r.read())
+
+          summary = data["candidates"][0]["content"]["parts"][0]["text"]
+
+          with open("summary.json", "w") as f:
+            import datetime
+            json.dump({"summary": summary, "updated": datetime.datetime.utcnow().strftime("%d %b %Y, %H:%M UTC")}, f)
+
+          print("Summary written.")
+          EOF
+
+      - name: Commit summary
+        run: |
+          git config user.name "github-actions"
+          git config user.email "actions@github.com"
+          git add summary.json
+          git diff --cached --quiet || git commit -m "chore: daily news summary update"
+          git push

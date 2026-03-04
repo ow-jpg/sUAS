@@ -14,25 +14,18 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Fetch RSS and summarise with Gemini
+      - name: Fetch RSS and summarise with Groq
         env:
-          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+          GROQ_API_KEY: ${{ secrets.GROQ_API_KEY }}
         run: |
           python3 << 'EOF'
-          import urllib.request, xml.etree.ElementTree as ET, json, os, datetime
+          import urllib.request, urllib.parse, xml.etree.ElementTree as ET, json, os, datetime
 
-          api_key = os.environ.get("GEMINI_API_KEY", "")
+          api_key = os.environ.get("GROQ_API_KEY", "")
           print(f"API key present: {bool(api_key)} (length {len(api_key)})")
 
           QUERY_A = '"FPV drone" OR "FPV strike" OR "small drone" OR "quadcopter" military combat warfare Ukraine'
           QUERY_B = '"small UAS" OR "sUAS" OR "counter-drone" OR "anti-drone" military defense'
-
-          FEEDS = [
-            f"https://news.google.com/rss/search?q={urllib.parse.quote(QUERY_A)}&hl=en&gl=US&ceid=US:en",
-            f"https://news.google.com/rss/search?q={urllib.parse.quote(QUERY_B)}&hl=en&gl=US&ceid=US:en",
-          ]
-
-          import urllib.parse
 
           FEEDS = [
             f"https://news.google.com/rss/search?q={urllib.parse.quote(QUERY_A)}&hl=en&gl=US&ceid=US:en",
@@ -55,7 +48,6 @@ jobs:
                 tl = t.lower()
                 if not t: continue
                 if any(b in tl for b in BLOCK): continue
-                # strip " - Publication Name" suffix Google News adds
                 if ' - ' in t:
                   t = t[:t.rfind(' - ')].strip()
                 headlines.append(t)
@@ -67,7 +59,7 @@ jobs:
           headlines = list(dict.fromkeys(headlines))[:30]
           print(f"Total headlines after dedup: {len(headlines)}")
 
-          updated = datetime.datetime.utcnow().strftime("%-d %b %Y, %H:%M UTC")
+          updated = datetime.datetime.now(datetime.timezone.utc).strftime("%-d %b %Y, %H:%M UTC")
 
           if not headlines:
             print("No headlines — writing fallback summary.json")
@@ -85,24 +77,27 @@ jobs:
             "Headlines:\n" + headline_text
           )
 
-          payload = json.dumps({
-            "contents": [{"parts": [{"text": prompt}]}],
-            "generationConfig": {"temperature": 0.4, "maxOutputTokens": 300}
-          }).encode()
-
-          print("Calling Gemini API...")
+          print("Calling Groq API...")
           req = urllib.request.Request(
-            f"https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key={api_key}",
-            data=payload,
-            headers={"Content-Type": "application/json"}
+            "https://api.groq.com/openai/v1/chat/completions",
+            data=json.dumps({
+              "model": "llama-3.3-70b-versatile",
+              "messages": [{"role": "user", "content": prompt}],
+              "max_tokens": 300,
+              "temperature": 0.4
+            }).encode(),
+            headers={
+              "Content-Type": "application/json",
+              "Authorization": f"Bearer {api_key}"
+            }
           )
           try:
             with urllib.request.urlopen(req) as r:
               data = json.loads(r.read())
-            summary = data["candidates"][0]["content"]["parts"][0]["text"].strip()
+            summary = data["choices"][0]["message"]["content"].strip()
             print(f"Summary: {summary[:120]}...")
           except Exception as e:
-            print(f"Gemini API error: {e}")
+            print(f"Groq API error: {e}")
             with open("summary.json", "w") as f:
               json.dump({"summary": "Summary unavailable today — API error.", "updated": updated}, f)
             exit(0)

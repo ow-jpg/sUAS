@@ -70,7 +70,7 @@
     a:hover { text-decoration: underline; }
 
     .scroll-wrap {
-      max-height: 520px;
+      max-height: 700px;
       overflow-y: auto;
       padding-right: 6px;
       -webkit-mask-image: linear-gradient(to bottom, black 99%, transparent 100%);
@@ -102,6 +102,25 @@
     .account-card .handle { font-weight: 700; color: #4da3ff; font-size: 0.9rem; margin-bottom: 0.2rem; }
     .account-card .desc { font-size: 0.82rem; color: #aaa; line-height: 1.4; }
     .account-card .tag { font-size: 0.72rem; color: #7a5a96; margin-top: 0.25rem; }
+
+    .tg-card {
+      display: flex;
+      flex-direction: column;
+      background: #1c2b1c;
+      border: 1px solid #2c4a2c;
+      border-radius: 10px;
+      padding: 0.75rem 0.9rem;
+      margin-bottom: 0.6rem;
+      transition: border-color 0.15s ease, transform 0.12s ease;
+    }
+    .tg-card:hover { border-color: #6abf6a; transform: translateY(-1px); }
+    .tg-card .tg-handle { font-weight: 700; color: #6abf6a; font-size: 0.9rem; margin-bottom: 0.2rem; }
+    .tg-card .tg-text { font-size: 0.82rem; color: #c8ddc8; line-height: 1.5; margin-bottom: 0.4rem; }
+    .tg-card .tg-footer { display: flex; justify-content: space-between; align-items: center; margin-top: 0.25rem; }
+    .tg-card .tg-date { font-size: 0.72rem; color: #5a8a5a; }
+    .tg-card .tg-link { font-size: 0.72rem; color: #6abf6a; text-decoration: none; opacity: 0.8; }
+    .tg-card .tg-link:hover { opacity: 1; text-decoration: underline; }
+    .tg-card .tg-translated { font-size: 0.68rem; color: #4a7a4a; margin-bottom: 0.35rem; font-style: italic; }
 
     .card {
       background: #4B365F;
@@ -240,7 +259,7 @@
 
       <hr class="summary-divider" id="tg-summary-divider" style="display:none;">
 
-      <div class="scroll-wrap" style="max-height:380px;">
+      <div class="scroll-wrap" style="max-height:600px;">
         <div id="tg-feed"></div>
       </div>
     </div>
@@ -265,7 +284,7 @@
       <hr class="summary-divider" id="summary-divider" style="display:none;">
       <div id="news-status" class="status" style="display:none;"></div>
 
-      <div class="scroll-wrap" style="max-height:380px;">
+      <div class="scroll-wrap" style="max-height:600px;">
         <ul id="feed2" class="news-list"></ul>
       </div>
     </div>
@@ -290,7 +309,7 @@
       <hr class="summary-divider" id="academia-summary-divider" style="display:none;">
       <div id="academia-status" class="status" style="display:none;"></div>
 
-      <div class="scroll-wrap" style="max-height:380px;">
+      <div class="scroll-wrap" style="max-height:600px;">
         <ul id="feed3" class="academia-list"></ul>
       </div>
     </div>
@@ -575,37 +594,21 @@
         return;
       }
       posts.forEach(function(p) {
-        // Extract post path from link e.g. https://t.me/channel/12345
-        var postPath = null;
-        var m = (p.link || '').match(/t\.me\/([^\/\?\s]+)\/(\d+)/i);
-        if (m) postPath = m[1] + '/' + m[2];
-
-        if (postPath) {
-          // Official Telegram embed — shows images, videos, full content
-          var wrap = document.createElement('div');
-          wrap.style.marginBottom = '12px';
-          var s = document.createElement('script');
-          s.async = true;
-          s.src = 'https://telegram.org/js/telegram-widget.js?22';
-          s.setAttribute('data-telegram-post', postPath);
-          s.setAttribute('data-width', '100%');
-          s.setAttribute('data-dark', '1');
-          s.setAttribute('data-color', '3D7A3D');
-          wrap.appendChild(s);
-          host.appendChild(wrap);
-        } else {
-          // Fallback card if no parseable post link
-          var card = document.createElement('div');
-          card.className = 'card';
-          card.style.background = '#1e2e1e';
-          card.style.borderColor = '#2c4a2c';
-          var snippet = (p.snippet || '').replace(/</g,'&lt;').replace(/>/g,'&gt;');
-          card.innerHTML =
-            '<a class="title" href="https://t.me/s/' + p.channel + '" target="_blank" rel="noopener">' + snippet + '</a>' +
-            '<div class="meta"><div class="source" style="color:#6abf6a;">@' + p.channel + '</div>' +
-            '<div class="date">' + (formatDate(p.pubDate) || '') + '</div></div>';
-          host.appendChild(card);
-        }
+        var card = document.createElement('div');
+        card.className = 'tg-card';
+        var text = (p.snippet_en || p.snippet || '').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+        var wasTranslated = p.snippet_en && p.snippet && p.snippet_en !== p.snippet;
+        var link = p.link || ('https://t.me/s/' + p.channel);
+        var dateStr = formatDate(p.pubDate) || '';
+        card.innerHTML =
+          '<a class="tg-handle" href="https://t.me/s/' + p.channel + '" target="_blank" rel="noopener">@' + p.channel + '</a>' +
+          (wasTranslated ? '<span class="tg-translated">translated from original</span>' : '') +
+          '<div class="tg-text">' + text + '</div>' +
+          '<div class="tg-footer">' +
+            '<span class="tg-date">' + dateStr + '</span>' +
+            '<a class="tg-link" href="' + link + '" target="_blank" rel="noopener">view post →</a>' +
+          '</div>';
+        host.appendChild(card);
       });
     }
 

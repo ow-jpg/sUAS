@@ -220,7 +220,7 @@
   </div>
 
   <div class="columns">
-    <!-- ──────────────────── TELEGRAM (Filtered embeds) ──────────────────── -->
+    <!-- ──────────────────── TELEGRAM ──────────────────── -->
     <div class="column">
       <div class="col-header">
         <h2>telegram</h2>
@@ -228,11 +228,13 @@
       </div>
 
       <p class="x-fallback-header" style="margin-bottom:0.75rem;">
-        filtered embeds — only posts matching sUAS/FPV keywords are shown
+        filtered posts — only sUAS/FPV keyword matches shown · <span id="tg-updated"></span>
       </p>
 
+      <div id="tg-status" class="status" style="display:none;"></div>
+
       <div class="scroll-wrap" style="max-height:520px;">
-        <div id="tg-embed-list"></div>
+        <div id="tg-feed"></div>
       </div>
     </div>
 
@@ -549,161 +551,44 @@
       showStatus('', false, 'academia-status');
     }
 
-    /* ──────────────────── TELEGRAM FILTERED EMBEDS (Option B) ──────────────────── */
-    // Channels you provided:
-    var TG_CHANNELS_FOR_FEED = [
-      'DefenderDome',
-      'OSINTdefender',
-      'wartranslated',
-      'lost_armour',
-      'VictoryDrones2023',
-      'VictoryDrones',
-      'noel_reports',
-      'combat_ftg2',
-      'serhii_flash'
-    ];
+    /* ──────────────────── TELEGRAM (reads telegram.json from GitHub Actions) ──────────────────── */
 
-    var TG_MAX_TOTAL_EMBEDS = 10;      // overall cap across all channels
-    var TG_MAX_PER_CHANNEL  = 4;       // per-channel cap
-    var TG_CACHE_KEY        = 'tg_embed_cache_v1';
-    var TG_CACHE_TTL_MS     = 60 * 60 * 1000; // 1 hour
-
-    // Allow-list and context (inspired by your News queries)
-    var TG_ALLOW_CORE = [
-      'fpv','fpv drone','fpv attack','fpv strike','fpv drones',
-      'small uas','suas','small drone','quadcopter','hexacopter','octocopter',
-      'dji','mavic','phantom','inspire','matrice','first-person view'
-    ];
-    var TG_ALLOW_CONTEXT = [
-      'military','combat','warfare','battlefield','ukraine','russia',
-      'frontline','trench','strike','attack','munition','warhead',
-      'loitering','kamikaze','fuzing','ew','jamming','counter-uas',
-      'c-uas','anti-drone','counter drone','c-ram'
-    ];
-
-    function isTelegramBlocked(text) { return isTitleBlocked(text || ''); }
-    function norm(s){ return (s || '').toLowerCase(); }
-    function isTelegramAllowed(text) {
-      var t = norm(text);
-      var hasCore = TG_ALLOW_CORE.some(k => t.indexOf(k) !== -1);
-      var hasCtx  = TG_ALLOW_CONTEXT.some(k => t.indexOf(k) !== -1);
-      return hasCore && hasCtx;
-    }
-
-    async function fetchTelegramRSS(username){
-      try {
-        var rssUrl = 'https://rsshub.app/telegram/channel/' + encodeURIComponent(username);
-        var proxied = 'https://corsproxy.io/?' + encodeURIComponent(rssUrl + '?_=' + Date.now());
-        var res = await fetch(proxied);
-        var xml = new DOMParser().parseFromString(await res.text(), 'text/xml');
-        var items = xml.getElementsByTagName('item');
-        var out = [];
-        for (var i = 0; i < Math.min(items.length, 30); i++) {
-          var it = items[i];
-          var title = (it.getElementsByTagName('title')[0]?.textContent || '').trim();
-          var link  = (it.getElementsByTagName('link')[0]?.textContent  || '').trim();
-          var desc  = (it.getElementsByTagName('description')[0]?.textContent || '').trim();
-          var pub   = (it.getElementsByTagName('pubDate')[0]?.textContent || '').trim();
-          out.push({ title: title, link: link, description: desc, pubDateISO: pub, channel: username });
-        }
-        return out;
-      } catch(e) { return []; }
-    }
-
-    function parseTelegramPostId(link) {
-      if (!link) return null;
-      try {
-        var m = link.match(/t\.me\/([^\/\?\s]+)\/(\d+)/i);
-        return m ? (m[1] + '/' + m[2]) : null;
-      } catch(e){ return null; }
-    }
-
-    function renderTelegramEmbeds(itemsByChannel) {
-      var host = document.getElementById('tg-embed-list');
+    function renderTelegramFeed(posts) {
+      var host = document.getElementById('tg-feed');
       if (!host) return;
       host.innerHTML = '';
-
-      var total = 0;
-      Object.keys(itemsByChannel).forEach(function(ch){
-        var arr = itemsByChannel[ch] || [];
-        var take = Math.min(arr.length, TG_MAX_PER_CHANNEL);
-        for (var i = 0; i < take && total < TG_MAX_TOTAL_EMBEDS; i++) {
-          var it = arr[i];
-          var postId = parseTelegramPostId(it.link);
-          if (!postId) continue;
-
-          var meta = document.createElement('div');
-          meta.className = 'account-card';
-          meta.innerHTML =
-            '<a class="handle" href="https://t.me/s/' + ch + '" target="_blank" rel="noopener">@' + ch + '</a>' +
-            '<span class="desc">' + (it.title || '').replace(/\s+/g,' ').trim() + '</span>' +
-            '<span class="tag">' + (formatDate(it.pubDateISO) || '') + '</span>';
-          host.appendChild(meta);
-
-          var wrap = document.createElement('div');
-          wrap.style.margin = '8px 0 14px 0';
-
-          var s = document.createElement('script');
-          s.async = true;
-          s.src = 'https://telegram.org/js/telegram-widget.js?22';
-          s.setAttribute('data-telegram-post', postId); // "<channel>/<postId>"
-          s.setAttribute('data-width', '100%');
-          s.setAttribute('data-dark', '1'); // dark mode
-          wrap.appendChild(s);
-
-          host.appendChild(wrap);
-          total++;
-          if (total >= TG_MAX_TOTAL_EMBEDS) break;
-        }
-      });
-    }
-
-    function saveTgCache(items) {
-      try {
-        localStorage.setItem(TG_CACHE_KEY, JSON.stringify(items || []));
-        localStorage.setItem(TG_CACHE_KEY + '_t', String(Date.now()));
-      } catch(e){}
-    }
-    function loadTgCache() {
-      try {
-        var raw = localStorage.getItem(TG_CACHE_KEY);
-        var when = parseInt(localStorage.getItem(TG_CACHE_KEY + '_t') || '0', 10);
-        var fresh = when && (Date.now() - when < TG_CACHE_TTL_MS);
-        return { items: raw ? JSON.parse(raw) : [], fresh: fresh };
-      } catch(e){ return { items: [], fresh: false }; }
-    }
-
-    function groupByChannel(items) {
-      var map = {};
-      (items || []).forEach(function(it){
-        map[it.channel] = map[it.channel] || [];
-        map[it.channel].push(it);
-      });
-      return map;
-    }
-
-    async function loadTelegramEmbeds(){
-      var cache = loadTgCache();
-      if (cache.items.length) {
-        renderTelegramEmbeds(groupByChannel(cache.items));
+      if (!posts || posts.length === 0) {
+        showStatus('No matching posts found yet. The workflow may not have run yet.', false, 'tg-status');
+        return;
       }
-
-      var all = [];
-      var results = await Promise.allSettled(TG_CHANNELS_FOR_FEED.map(fetchTelegramRSS));
-      results.forEach(function(r){ if (r.status==='fulfilled') all = all.concat(r.value); });
-
-      var filtered = (all || []).filter(function(it){
-        var text = (it.title + ' ' + (it.description || '')).toLowerCase();
-        return isTelegramAllowed(text) && !isTelegramBlocked(text);
+      showStatus('', false, 'tg-status');
+      posts.forEach(function(p) {
+        var card = document.createElement('div');
+        card.className = 'account-card';
+        var dateStr = formatDate(p.pubDate) || '';
+        var snippet = (p.snippet || p.title || '').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+        var link = p.link || ('https://t.me/s/' + p.channel);
+        card.innerHTML =
+          '<a class="handle" href="https://t.me/s/' + p.channel + '" target="_blank" rel="noopener">@' + p.channel + '</a>' +
+          '<a class="desc" href="' + link + '" target="_blank" rel="noopener" style="color:#ccc;text-decoration:none;">' + snippet + '</a>' +
+          '<span class="tag">' + dateStr + '</span>';
+        host.appendChild(card);
       });
+    }
 
-      var deduped = dedupeItems(filtered);
-      var ordered = sortDesc(deduped);
-      var limited = ordered.slice(0, 50);
-
-      saveTgCache(limited);
-      renderTelegramEmbeds(groupByChannel(limited));
-      updateSyncTime();
+    function loadTelegramFeed() {
+      fetch('telegram.json?_=' + Date.now())
+        .then(function(r) { return r.json(); })
+        .then(function(d) {
+          if (d.updated) {
+            var el = document.getElementById('tg-updated');
+            if (el) el.textContent = 'updated ' + d.updated;
+          }
+          renderTelegramFeed(d.posts || []);
+        })
+        .catch(function() {
+          showStatus('telegram.json not found — run the workflow in GitHub Actions to generate it.', true, 'tg-status');
+        });
     }
 
     /* ──────────────────── BOOTSTRAP ──────────────────── */
@@ -712,7 +597,7 @@
     loadAcademiaSummary();
     loadNews();
     loadAcademia();
-    loadTelegramEmbeds();
+    loadTelegramFeed();
   </script>
 </body>
 </html>

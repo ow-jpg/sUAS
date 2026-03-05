@@ -135,7 +135,7 @@ jobs:
             'all:"counter-UAS" OR all:"anti-drone" AND (all:defense OR all:military)',
           ]
 
-          papers = []
+          papers_raw = []
           for q in ARXIV_QUERIES:
             try:
               url = f"https://export.arxiv.org/api/query?search_query={urllib.parse.quote(q)}&max_results=10&sortBy=submittedDate&sortOrder=descending"
@@ -146,31 +146,42 @@ jobs:
               for entry in tree.iter('{http://www.w3.org/2005/Atom}entry'):
                 title = (entry.findtext('{http://www.w3.org/2005/Atom}title') or '').strip().replace('\n', ' ')
                 abstract = (entry.findtext('{http://www.w3.org/2005/Atom}summary') or '').strip().replace('\n', ' ')[:300]
+                published = (entry.findtext('{http://www.w3.org/2005/Atom}published') or '').strip()
                 if title:
-                  papers.append(f"Title: {title}\nAbstract: {abstract}")
-              print(f"  -> {len(papers)} papers so far")
+                  papers_raw.append({"title": title, "abstract": abstract, "published": published})
+              print(f"  -> {len(papers_raw)} papers so far")
             except Exception as e:
               print(f"  arXiv error: {e}")
 
-          papers = list(dict.fromkeys(papers))[:20]
-          print(f"Total papers after dedup: {len(papers)}")
+          seen_titles = set()
+          papers_deduped = []
+          for p in papers_raw:
+            if p["title"] not in seen_titles:
+              seen_titles.add(p["title"])
+              papers_deduped.append(p)
+
+          papers_deduped.sort(key=lambda x: x["published"], reverse=True)
+          top5 = papers_deduped[:5]
+          papers = [f"Title: {p['title']}\nAbstract: {p['abstract']}" for p in top5]
+          print(f"Top 5 most recent papers:")
+          for p in top5:
+            print(f"  [{p['published'][:10]}] {p['title'][:80]}")
 
           updated = datetime.datetime.now(datetime.timezone.utc).strftime("%-d %b %Y, %H:%M UTC")
 
           if not papers:
             with open("academia-summary.json", "w") as f:
-              json.dump({"summary": "No matching academic papers found this week.", "updated": updated}, f)
+              json.dump({"summary": "No matching academic papers found.", "updated": updated}, f)
             exit(0)
 
           paper_text = "\n\n".join(papers)
 
           prompt = (
             "You are a defence researcher specialising in small UAS (small commercial quadcopters and FPV drones). "
-            "Based on the following recent arXiv paper titles and abstracts, write a 3-5 sentence summary of the key research themes and technical developments this week. "
-            "Focus on what is new, interesting, or significant from a defence or military applications perspective. "
-            "Be specific about methods, findings, or technologies mentioned. "
-            "Do not be vague or generic — if a paper mentions a specific technique, sensor, or capability, include it. "
-            "Be concise and use plain English.\n\n"
+            "Based on the following 5 most recent arXiv papers, write a 3-5 sentence summary covering what these specific papers are about. "
+            "Do not start with 'this week' or any time reference — just describe the papers directly. "
+            "Do not generalise or describe broad themes — describe what each paper actually investigates, including specific methods, sensors, algorithms, or capabilities mentioned in the abstracts. "
+            "Be factual, specific, and use plain English.\n\n"
             "Papers:\n" + paper_text
           )
 

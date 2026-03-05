@@ -409,6 +409,8 @@ jobs:
         run: |
           git config user.name "github-actions"
           git config user.email "actions@github.com"
-          git add summary.json academia-summary.json combined-summary.json summary-history.json monthly-digest.json
+          for f in summary.json academia-summary.json combined-summary.json summary-history.json monthly-digest.json; do
+            [ -f "$f" ] && git add "$f" || echo "Skipping $f (not found)"
+          done
           git diff --cached --quiet || git commit -m "chore: update summaries"
           git push

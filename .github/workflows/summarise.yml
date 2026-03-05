@@ -178,7 +178,7 @@ jobs:
 
           prompt = (
             "You are a defence researcher specialising in small UAS (small commercial quadcopters and FPV drones). "
-            "Based on the following 5 most recent arXiv papers, write a 3-5 sentence summary covering the discoveries/topics of what they're about/what they discover. "
+            "Based on the following 5 most recent arXiv papers, write a 3-5 sentence summary covering the discoveries/topics of what they're about/what they discover - do not go through each paper one by one, provide a holistic, top-down view. "
             "Do not start with 'this week' or any time reference — just describe the papers directly. "
             "Do not generalise or describe broad themes — describe what the papers actually investigate, including specific methods, sensors, algorithms, or capabilities mentioned in the abstracts. "
             "Be factual, specific, and use plain English.\n\n"

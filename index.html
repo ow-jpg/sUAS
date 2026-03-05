@@ -290,8 +290,9 @@
     <div class="column">
       <div class="col-header">
         <h2>telegram</h2>
+        <span id="tg-updated" style="font-size:0.68rem; color:#666;"></span>
       </div>
-      <p class="col-subheader">sUAS/FPV only · hourly · <span id="tg-updated"></span></p>
+      <p class="col-subheader">&nbsp;</p>
 
       <div class="summary-outer" id="tg-summary-outer" style="display:none;">
         <div class="ai-summary-box" id="tg-summary-box" style="background:#1a2b1a; border-color:#2c4a2c;">
@@ -681,7 +682,7 @@
         .then(function(d) {
           if (d.updated) {
             var el = document.getElementById('tg-updated');
-            if (el) el.textContent = 'updated ' + d.updated;
+            if (el) el.textContent = d.updated;
           }
           renderTelegramFeed(d.posts || []);
         })

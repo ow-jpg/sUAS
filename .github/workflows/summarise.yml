@@ -24,15 +24,15 @@ jobs:
           api_key = os.environ.get("OPENROUTER_API_KEY", "")
           print(f"API key present: {bool(api_key)} (length {len(api_key)})")
 
-          QUERY_A = '"FPV drone" OR "FPV strike" OR "small drone" OR "quadcopter" military combat warfare Ukraine after:2025-12-31'
-          QUERY_B = '"small UAS" OR "sUAS" OR "counter-drone" OR "anti-drone" military defense after:2025-12-31'
+          QUERY_A = '("FPV drone" OR "FPV attack" OR "FPV strike" OR "FPV drones" OR "small drone" OR "quadcopter") AND (military OR combat OR warfare OR Ukraine OR battlefield) after:2025-12-31 when:7d'
+          QUERY_B = '("small UAS" OR sUAS OR "commercial quadcopter" OR "DJI") AND (military OR defense OR warfare OR "counter-drone" OR "anti-drone") after:2025-12-31 when:7d'
 
           FEEDS = [
             f"https://news.google.com/rss/search?q={urllib.parse.quote(QUERY_A)}&hl=en&gl=US&ceid=US:en",
             f"https://news.google.com/rss/search?q={urllib.parse.quote(QUERY_B)}&hl=en&gl=US&ceid=US:en",
           ]
 
-          BLOCK = ['shahed','tb2','bayraktar','mq-9','reaper','global hawk','drone light show','drone show','amazon drone','drone photography','best drone','delivery drone']
+          BLOCK = ['shahed','geran','tb2','bayraktar','akinci','mq-9','reaper','global hawk','long-range drone','strategic drone','drone light show','drone show','amazon drone','drone photography','best drone','drone review','firefighting drone','agriculture drone','medical drone','package delivery','delivery drone']
 
           headlines = []
           for url in FEEDS:

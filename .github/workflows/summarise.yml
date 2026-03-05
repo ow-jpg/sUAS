@@ -2,8 +2,8 @@ name: Daily News Summary
 
 on:
   schedule:
-    - cron: '0 23 * * *'      # every day at 11pm UTC — news
-    - cron: '0 22 * * 1'      # every Monday at 10pm UTC — academia
+    - cron: '0 23 * * *'
+    - cron: '0 22 * * 1'
   workflow_dispatch:
 
 jobs:

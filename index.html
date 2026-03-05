@@ -362,7 +362,7 @@
       return (items || []).slice().sort(function(a, b) { return new Date(b.pubDateISO || 0) - new Date(a.pubDateISO || 0); });
     }
 
-    var NEWS_CACHE_KEY = 'news_cache_v15';
+    var NEWS_CACHE_KEY = 'news_cache_v16';
     var ACAD_CACHE_KEY = 'acad_cache_v4';
     var CACHE_TTL_MS   = 2 * 60 * 60 * 1000;
 
@@ -391,37 +391,30 @@
         .catch(function() {});
     }
 
-    var TITLE_REQUIRE_TERMS = ['fpv','small drone','quadcopter','commercial drone','suas','micro drone','nano drone','drone swarm','dji','drone warfare','drone strike','counter-drone','anti-drone','counter-uas','drone pilot','drone operator','uncrewed','drone kamikaze'];
+    /* ── News — queries match the workflow exactly ── */
     var TITLE_BLOCKLIST = ['shahed','geran','tb2','bayraktar','akinci','mq-9','reaper','global hawk','long-range drone','strategic drone','drone light show','drone show','amazon drone','drone photography','best drone','drone review','firefighting drone','agriculture drone','medical drone','package delivery','delivery drone'];
 
     function isTitleBlocked(t) { var l=(t||'').toLowerCase(); return TITLE_BLOCKLIST.some(function(x){return l.indexOf(x)!==-1;}); }
-    function titlePassesRequire(t) { var l=(t||'').toLowerCase(); return TITLE_REQUIRE_TERMS.some(function(x){return l.indexOf(x)!==-1;}); }
 
-    var QUERY_A = '("FPV drone" OR "FPV attack" OR "FPV strike" OR "FPV drones" OR "small drone" OR "quadcopter") AND (military OR combat OR warfare OR Ukraine OR battlefield) when:7d';
-    var QUERY_B = '("small UAS" OR sUAS OR "commercial quadcopter" OR "DJI") AND (military OR defense OR warfare OR "counter-drone" OR "anti-drone") when:7d';
+    var QUERY_A = '("FPV drone" OR "FPV attack" OR "FPV strike" OR "FPV drones" OR "small drone" OR "quadcopter") AND (military OR combat OR warfare OR Ukraine OR battlefield) after:2025-12-31 when:7d';
+    var QUERY_B = '("small UAS" OR sUAS OR "commercial quadcopter" OR "DJI") AND (military OR defense OR warfare OR "counter-drone" OR "anti-drone") after:2025-12-31 when:7d';
 
     var FEEDS_TIER1 = [
-      { url: 'https://news.google.com/rss/search?q=' + encodeURIComponent(QUERY_A), pub: '', requireFilter: false },
-      { url: 'https://news.google.com/rss/search?q=' + encodeURIComponent(QUERY_B), pub: '', requireFilter: false },
-      { url: 'https://twz.com/feed', pub: 'The War Zone', requireFilter: true },
-      { url: 'https://www.suasnews.com/feed', pub: 'sUAS News', requireFilter: false }
+      { url: 'https://news.google.com/rss/search?q=' + encodeURIComponent(QUERY_A) + '&hl=en&gl=US&ceid=US:en' },
+      { url: 'https://news.google.com/rss/search?q=' + encodeURIComponent(QUERY_B) + '&hl=en&gl=US&ceid=US:en' },
     ];
 
     async function fetchOneFeed(f) {
-      var augUrl = f.url.indexOf('news.google.com') !== -1 ? f.url + '&hl=en&gl=US&ceid=US:en' : f.url;
       try {
-        var sep = augUrl.indexOf('?') === -1 ? '?' : '&';
-        var proxy = 'https://corsproxy.io/?' + encodeURIComponent(augUrl + sep + '_=' + Date.now());
+        var proxy = 'https://corsproxy.io/?' + encodeURIComponent(f.url + '&_=' + Date.now());
         var res = await fetch(proxy);
         var xml = new DOMParser().parseFromString(await res.text(), 'text/xml');
         var out = [], items = xml.getElementsByTagName('item');
         for (var i = 0; i < Math.min(items.length, 30); i++) {
           var it = items[i];
-          var rawTitle = textOf(it,'title');
+          var rawTitle = textOf(it, 'title');
           var split = splitTitle(rawTitle);
-          var item = { title: split.headline, link: textOf(it,'link'), publication: f.pub || split.publication, pubDateISO: textOf(it,'pubDate') };
-          if (f.requireFilter && !titlePassesRequire(item.title)) continue;
-          out.push(item);
+          out.push({ title: split.headline, link: textOf(it,'link'), publication: split.publication, pubDateISO: textOf(it,'pubDate') });
         }
         return out;
       } catch(e) { return []; }

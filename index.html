@@ -106,7 +106,7 @@
     .tg-card {
       display: flex;
       flex-direction: column;
-      background: #1c2b1c;
+      background: #182618;
       border: 1px solid #2c4a2c;
       border-radius: 10px;
       padding: 0.75rem 0.9rem;
@@ -258,6 +258,7 @@
       </div>
 
       <hr class="summary-divider" id="tg-summary-divider" style="display:none;">
+      <div id="tg-status" class="status" style="display:none;"></div>
 
       <div class="scroll-wrap" style="max-height:600px;">
         <div id="tg-feed"></div>
@@ -596,7 +597,8 @@
       posts.forEach(function(p) {
         var card = document.createElement('div');
         card.className = 'tg-card';
-        var text = (p.snippet_en || p.snippet || '').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+        var rawText = (p.snippet_en && p.snippet_en.trim()) ? p.snippet_en : p.snippet || '';
+        var text = rawText.replace(/</g,'&lt;').replace(/>/g,'&gt;');
         var wasTranslated = p.snippet_en && p.snippet && p.snippet_en !== p.snippet;
         var link = p.link || ('https://t.me/s/' + p.channel);
         var dateStr = formatDate(p.pubDate) || '';

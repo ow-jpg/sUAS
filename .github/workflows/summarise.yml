@@ -24,8 +24,8 @@ jobs:
           api_key = os.environ.get("OPENROUTER_API_KEY", "")
           print(f"API key present: {bool(api_key)} (length {len(api_key)})")
 
-          QUERY_A = '"FPV drone" OR "FPV strike" OR "small drone" OR "quadcopter" military combat warfare Ukraine'
-          QUERY_B = '"small UAS" OR "sUAS" OR "counter-drone" OR "anti-drone" military defense'
+          QUERY_A = '"FPV drone" OR "FPV strike" OR "small drone" OR "quadcopter" military combat warfare Ukraine after:2025-12-31'
+          QUERY_B = '"small UAS" OR "sUAS" OR "counter-drone" OR "anti-drone" military defense after:2025-12-31'
 
           FEEDS = [
             f"https://news.google.com/rss/search?q={urllib.parse.quote(QUERY_A)}&hl=en&gl=US&ceid=US:en",
@@ -72,6 +72,7 @@ jobs:
           prompt = (
             "You are a defence analyst tracking small UAS (small commercial quadcopters and FPV drones only). "
             "Based strictly on the following recent news headlines, write a 3-5 sentence summary. "
+            "Only include events and developments that occurred in 2026 — ignore anything referencing events from 2025 or earlier. "
             "Start with the phrase 'News articles published within the previous 24 hours have outlined'. "
             "Focus only on specific developments, fine details, and new information mentioned in these headlines — do not give broad overviews, do not summarise the wider conflict, do not draw sweeping conclusions. "
             "If a headline mentions a specific incident, weapon, tactic, or figure, include it. "

@@ -46,8 +46,12 @@
       font-size: 0.72rem;
       color: #888;
       line-height: 1;
-      min-height: 1rem;
+      height: 1rem;
+      overflow: hidden;
     }
+    /* Force all summary-outer blocks to same height so feed lists align */
+    .summary-outer {
+      }
     .col-header h2 {
       border: none;
       margin: 0;
@@ -192,6 +196,7 @@
     .summary-text-wrap {
       overflow: hidden;
       transition: max-height 0.35s ease;
+      height: 72px;
       max-height: 72px;
       position: relative;
     }

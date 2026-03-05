@@ -269,4 +269,5 @@ jobs:
           git config user.email "actions@github.com"
           git add telegram.json telegram-summary.json
           git diff --cached --quiet || git commit -m "chore: update telegram feed"
+          git pull --rebase origin main
           git push

@@ -12,7 +12,6 @@
       color: #f0f0f0;
       font-family: Courier, serif;
     }
-
     body { padding: 2rem; }
 
     .header-container {
@@ -42,7 +41,6 @@
       margin-bottom: 1rem;
       height: 32px;
     }
-
     .col-header h2 {
       border: none;
       margin: 0;
@@ -50,7 +48,6 @@
       font-size: 1.1rem;
       text-transform: lowercase;
     }
-
     .refresh-btn {
       background: none;
       border: none;
@@ -69,7 +66,6 @@
 
     ul { list-style: none; padding: 0; }
     li { margin-bottom: 1rem; }
-
     a { text-decoration: none; color: #4da3ff; }
     a:hover { text-decoration: underline; }
 
@@ -80,31 +76,16 @@
       -webkit-mask-image: linear-gradient(to bottom, black 99%, transparent 100%);
       mask-image: linear-gradient(to bottom, black 99%, transparent 100%);
     }
-
     .scroll-wrap::-webkit-scrollbar { width: 5px; }
     .scroll-wrap::-webkit-scrollbar-track { background: transparent; }
     .scroll-wrap::-webkit-scrollbar-thumb { background: #3a3a3a; border-radius: 4px; }
     .scroll-wrap::-webkit-scrollbar-thumb:hover { background: #5a4370; }
-
-    #x-embed-container {
-      display: none;
-      border-radius: 10px;
-      overflow: hidden;
-      border: 1px solid #333;
-    }
-
-    #x-embed-container iframe {
-      display: block;
-      width: 100% !important;
-      border: none !important;
-    }
 
     .x-fallback-header {
       font-size: 0.82rem;
       color: #888;
       margin-bottom: 0.75rem;
     }
-
     .x-fallback-header a { color: #4da3ff; }
 
     .account-card {
@@ -117,7 +98,6 @@
       margin-bottom: 0.6rem;
       transition: border-color 0.15s ease, transform 0.12s ease;
     }
-
     .account-card:hover { border-color: #4da3ff; transform: translateY(-1px); }
     .account-card .handle { font-weight: 700; color: #4da3ff; font-size: 0.9rem; margin-bottom: 0.2rem; }
     .account-card .desc { font-size: 0.82rem; color: #aaa; line-height: 1.4; }
@@ -131,7 +111,6 @@
       transition: transform 0.12s ease;
       text-align: center;
     }
-
     .card:hover { transform: translateY(-1px); border-color: #5a4370; }
     .card a.title { display: inline-block; color: #fff; font-weight: 700; text-decoration: none; line-height: 1.35; }
     .card a.title:hover { text-decoration: underline; }
@@ -142,11 +121,11 @@
     .meta { margin-top: 0.55rem; display: flex; flex-direction: column; align-items: center; gap: 0.35rem; }
     .meta .source { color: #f1e9fa; font-size: 0.9rem; font-weight: 600; }
     .meta .author { color: #e9dbf6; font-size: 0.88rem; }
-    .meta .date   { color: #d9c8ee; font-size: 0.86rem; }
+    .meta .date { color: #d9c8ee; font-size: 0.86rem; }
 
     .academia-card .meta .source { color: #c8dff5; }
     .academia-card .meta .author { color: #b0cce8; font-size: 0.82rem; }
-    .academia-card .meta .date   { color: #96b8d8; font-size: 0.82rem; }
+    .academia-card .meta .date { color: #96b8d8; font-size: 0.82rem; }
 
     .status {
       color: #cfcfcf;
@@ -160,10 +139,7 @@
     .status.error { border-color: #513333; background: #2a1e1e; color: #ffbcbc; }
 
     /* ── Summary boxes ── */
-    .summary-outer {
-      margin-bottom: 0;
-    }
-
+    .summary-outer { margin-bottom: 0; }
     .ai-summary-box {
       background: #261a33;
       border: 1px solid #3d2c4e;
@@ -174,7 +150,6 @@
       color: #e9dbf6;
       position: relative;
     }
-
     .academia-summary-box {
       background: #1a2233;
       border: 1px solid #2a3a52;
@@ -185,22 +160,8 @@
       color: #b8ccd4;
       position: relative;
     }
-
-    .ai-summary-label {
-      color: #b08fd4;
-      font-size: 0.72rem;
-      font-weight: bold;
-      letter-spacing: 0.5px;
-      margin-bottom: 0.6rem;
-    }
-
-    .academia-summary-label {
-      color: #6aaabf;
-      font-size: 0.72rem;
-      font-weight: bold;
-      letter-spacing: 0.5px;
-      margin-bottom: 0.6rem;
-    }
+    .ai-summary-label { color: #b08fd4; font-size: 0.72rem; font-weight: bold; letter-spacing: 0.5px; margin-bottom: 0.6rem; }
+    .academia-summary-label { color: #6aaabf; font-size: 0.72rem; font-weight: bold; letter-spacing: 0.5px; margin-bottom: 0.6rem; }
 
     .summary-text-wrap {
       overflow: hidden;
@@ -208,11 +169,7 @@
       max-height: 72px;
       position: relative;
     }
-
-    .summary-text-wrap.expanded {
-      max-height: 600px;
-    }
-
+    .summary-text-wrap.expanded { max-height: 600px; }
     .summary-fade {
       position: absolute;
       bottom: 0;
@@ -222,15 +179,8 @@
       pointer-events: none;
       transition: opacity 0.2s;
     }
-
-    .ai-summary-box .summary-fade {
-      background: linear-gradient(to bottom, transparent, #261a33);
-    }
-
-    .academia-summary-box .summary-fade {
-      background: linear-gradient(to bottom, transparent, #1a2233);
-    }
-
+    .ai-summary-box .summary-fade { background: linear-gradient(to bottom, transparent, #261a33); }
+    .academia-summary-box .summary-fade { background: linear-gradient(to bottom, transparent, #1a2233); }
     .summary-fade.hidden { opacity: 0; }
 
     .summary-toggle-btn {
@@ -248,16 +198,8 @@
       transition: opacity 0.2s, background 0.2s;
       letter-spacing: 0.5px;
     }
-
-    .summary-toggle-btn.academia {
-      border-color: #2a3a52;
-      color: #6aaabf;
-    }
-
-    .summary-toggle-btn:hover {
-      opacity: 1;
-      background: rgba(255,255,255,0.03);
-    }
+    .summary-toggle-btn.academia { border-color: #2a3a52; color: #6aaabf; }
+    .summary-toggle-btn:hover { opacity: 1; background: rgba(255,255,255,0.03); }
 
     .summary-divider {
       border: none;
@@ -269,7 +211,6 @@
   </style>
 </head>
 <body>
-
   <div class="header-container">
     <h1>sUAS database</h1>
     <div class="header-info">
@@ -279,29 +220,23 @@
   </div>
 
   <div class="columns">
-
+    <!-- ──────────────────── TELEGRAM (Filtered embeds) ──────────────────── -->
     <div class="column">
       <div class="col-header">
-        <h2>X</h2>
+        <h2>telegram</h2>
         <button onclick="location.reload()" class="refresh-btn">[refresh system]</button>
       </div>
-      <div id="x-embed-container">
-        <a class="twitter-timeline"
-           href="https://twitter.com/i/lists/2028992106564600183"
-           data-theme="dark" data-height="520"
-           data-chrome="noheader nofooter noborders transparent"></a>
-      </div>
-      <div id="x-fallback">
-        <p class="x-fallback-header">
-          curated accounts —
-          <a href="https://x.com/i/lists/2028992106564600183?s=20" target="_blank" rel="noopener noreferrer">open full list on X ↗</a>
-        </p>
-        <div class="scroll-wrap">
-          <div id="account-cards"></div>
-        </div>
+
+      <p class="x-fallback-header" style="margin-bottom:0.75rem;">
+        filtered embeds — only posts matching sUAS/FPV keywords are shown
+      </p>
+
+      <div class="scroll-wrap" style="max-height:520px;">
+        <div id="tg-embed-list"></div>
       </div>
     </div>
 
+    <!-- ──────────────────── NEWS (unchanged) ──────────────────── -->
     <div class="column">
       <div class="col-header">
         <h2>news</h2>
@@ -317,14 +252,16 @@
         </div>
         <button class="summary-toggle-btn" id="news-toggle-btn" onclick="toggleSummary('news')">[ show more ▾ ]</button>
       </div>
-      <hr class="summary-divider" id="summary-divider" style="display:none;">
 
+      <hr class="summary-divider" id="summary-divider" style="display:none;">
       <div id="news-status" class="status" style="display:none;"></div>
+
       <div class="scroll-wrap" style="max-height:380px;">
         <ul id="feed2" class="news-list"></ul>
       </div>
     </div>
 
+    <!-- ──────────────────── ACADEMIA (unchanged) ──────────────────── -->
     <div class="column">
       <div class="col-header">
         <h2>academia</h2>
@@ -340,20 +277,20 @@
         </div>
         <button class="summary-toggle-btn academia" id="academia-toggle-btn" onclick="toggleSummary('academia')">[ show more ▾ ]</button>
       </div>
-      <hr class="summary-divider" id="academia-summary-divider" style="display:none;">
 
+      <hr class="summary-divider" id="academia-summary-divider" style="display:none;">
       <div id="academia-status" class="status" style="display:none;"></div>
+
       <div class="scroll-wrap" style="max-height:380px;">
         <ul id="feed3" class="academia-list"></ul>
       </div>
     </div>
-
   </div>
 
   <script>
     function toggleSummary(which) {
       var wrap = document.getElementById(which === 'news' ? 'news-text-wrap' : 'academia-text-wrap');
-      var btn  = document.getElementById(which === 'news' ? 'news-toggle-btn' : 'academia-toggle-btn');
+      var btn = document.getElementById(which === 'news' ? 'news-toggle-btn' : 'academia-toggle-btn');
       var fade = document.getElementById(which === 'news' ? 'news-fade' : 'academia-fade');
       var expanded = wrap.classList.contains('expanded');
       if (expanded) {
@@ -366,50 +303,6 @@
         fade.classList.add('hidden');
       }
     }
-
-    var ACCOUNTS = [
-      { handle: 'UAWeapons',       desc: 'Ukrainian weapons & drone footage tracker',                                          tag: 'OSINT · battlefield' },
-      { handle: 'UAControlMap',    desc: 'Conflict mapping & drone incident tracking',                                         tag: 'OSINT · mapping' },
-      { handle: 'naalsio26',       desc: 'FPV strike compilation & tactical analysis',                                         tag: 'OSINT · FPV' },
-      { handle: 'OSINTtechnical',  desc: 'Broad OSINT with strong drone coverage',                                             tag: 'OSINT' },
-      { handle: 'MENAStream',      desc: 'Premier OSINT — drone use by state & non-state actors in Mali/Niger/Burkina',        tag: 'Sahel · OSINT' },
-      { handle: 'sUASnews',        desc: 'sUAS News — dedicated small UAS industry coverage',                                  tag: 'publication' }
-    ];
-
-    (function buildAccountCards() {
-      var container = document.getElementById('account-cards');
-      if (!container) return;
-      ACCOUNTS.forEach(function(acc) {
-        var div = document.createElement('div');
-        div.className = 'account-card';
-        div.innerHTML =
-          '<a class="handle" href="https://x.com/' + acc.handle + '" target="_blank" rel="noopener noreferrer">@' + acc.handle + '</a>' +
-          '<span class="desc">' + acc.desc + '</span>' +
-          '<span class="tag">' + acc.tag + '</span>';
-        container.appendChild(div);
-      });
-    })();
-
-    window.addEventListener('load', function() {
-      var script = document.createElement('script');
-      script.src = 'https://platform.twitter.com/widgets.js';
-      script.async = true;
-      script.onload = function() {
-        if (!window.twttr || !window.twttr.ready) return;
-        window.twttr.ready(function(twttr) {
-          twttr.events.bind('rendered', function() {
-            setTimeout(function() {
-              var iframe = document.querySelector('#x-embed-container iframe');
-              if (iframe && iframe.offsetHeight > 200) {
-                document.getElementById('x-fallback').style.display = 'none';
-                document.getElementById('x-embed-container').style.display = 'block';
-              }
-            }, 1000);
-          });
-        });
-      };
-      document.body.appendChild(script);
-    });
 
     function formatDate(dateStr) {
       try {
@@ -451,7 +344,10 @@
     var STOPWORDS = { a:1,an:1,the:1,in:1,on:1,at:1,to:1,of:1,and:1,or:1,for:1,is:1,are:1,was:1,were:1,its:1,it:1,as:1,by:1,with:1,from:1,that:1,this:1,be:1,has:1,have:1,after:1,over:1,says:1,say:1,new:1,amid:1,into:1,how:1,why:1,what:1,when:1,who:1 };
 
     function fingerprint(title) {
-      return (title || '').toLowerCase().replace(/[^a-z0-9\s]/g, '').split(/\s+/).filter(function(w) { return w.length > 2 && !STOPWORDS[w]; });
+      return (title || '').toLowerCase()
+        .replace(/[^a-z0-9\s]/g, '')
+        .split(/\s+/)
+        .filter(function(w) { return w.length > 2 && !STOPWORDS[w]; });
     }
 
     function jaccard(a, b) {
@@ -477,15 +373,21 @@
     }
 
     function sortDesc(items) {
-      return (items || []).slice().sort(function(a, b) { return new Date(b.pubDateISO || 0) - new Date(a.pubDateISO || 0); });
+      return (items || []).slice().sort(function(a, b) {
+        return new Date(b.pubDateISO || 0) - new Date(a.pubDateISO || 0);
+      });
     }
 
+    /* ──────────────────── NEWS FEED (unchanged) ──────────────────── */
     var NEWS_CACHE_KEY = 'news_cache_v16';
     var ACAD_CACHE_KEY = 'acad_cache_v4';
-    var CACHE_TTL_MS   = 2 * 60 * 60 * 1000;
+    var CACHE_TTL_MS = 2 * 60 * 60 * 1000;
 
     function saveCache(key, items) {
-      try { localStorage.setItem(key, JSON.stringify(items || [])); localStorage.setItem(key + '_t', String(Date.now())); } catch(e) {}
+      try {
+        localStorage.setItem(key, JSON.stringify(items || []));
+        localStorage.setItem(key + '_t', String(Date.now()));
+      } catch(e) {}
     }
 
     function loadCache(key) {
@@ -522,13 +424,20 @@
         .catch(function() {});
     }
 
-    var TITLE_BLOCKLIST = ['shahed','geran','tb2','bayraktar','akinci','mq-9','reaper','global hawk','long-range drone','strategic drone','drone light show','drone show','amazon drone','drone photography','best drone','drone review','firefighting drone','agriculture drone','medical drone','package delivery','delivery drone'];
-
-    function isTitleBlocked(t) { var l=(t||'').toLowerCase(); return TITLE_BLOCKLIST.some(function(x){return l.indexOf(x)!==-1;}); }
+    var TITLE_BLOCKLIST = [
+      'shahed','geran','tb2','bayraktar','akinci','mq-9','reaper','global hawk',
+      'long-range drone','strategic drone','drone light show','drone show',
+      'amazon drone','drone photography','best drone','drone review',
+      'firefighting drone','agriculture drone','medical drone',
+      'package delivery','delivery drone'
+    ];
+    function isTitleBlocked(t) {
+      var l=(t||'').toLowerCase();
+      return TITLE_BLOCKLIST.some(function(x){return l.indexOf(x)!==-1;});
+    }
 
     var QUERY_A = '("FPV drone" OR "FPV attack" OR "FPV strike" OR "FPV drones" OR "small drone" OR "quadcopter") AND (military OR combat OR warfare OR Ukraine OR battlefield) after:2025-12-31 when:7d';
     var QUERY_B = '("small UAS" OR sUAS OR "commercial quadcopter" OR "DJI") AND (military OR defense OR warfare OR "counter-drone" OR "anti-drone") after:2025-12-31 when:7d';
-
     var FEEDS_TIER1 = [
       { url: 'https://news.google.com/rss/search?q=' + encodeURIComponent(QUERY_A) + '&hl=en&gl=US&ceid=US:en' },
       { url: 'https://news.google.com/rss/search?q=' + encodeURIComponent(QUERY_B) + '&hl=en&gl=US&ceid=US:en' },
@@ -544,7 +453,12 @@
           var it = items[i];
           var rawTitle = textOf(it, 'title');
           var split = splitTitle(rawTitle);
-          out.push({ title: split.headline, link: textOf(it,'link'), publication: split.publication, pubDateISO: textOf(it,'pubDate') });
+          out.push({
+            title: split.headline,
+            link: textOf(it,'link'),
+            publication: split.publication,
+            pubDateISO: textOf(it,'pubDate')
+          });
         }
         return out;
       } catch(e) { return []; }
@@ -560,7 +474,9 @@
         var it = ordered[i];
         var li = document.createElement('li');
         li.className = 'card';
-        li.innerHTML = '<a class="title" href="'+it.link+'" target="_blank">'+it.title+'</a><div class="meta"><div class="source">'+it.publication+'</div><div class="date">'+formatDate(it.pubDateISO)+'</div></div>';
+        li.innerHTML = '<a class="title" href="'+it.link+'" target="_blank">'+it.title+'</a>'
+          + '<div class="meta"><div class="source">'+it.publication+'</div>'
+          + '<div class="date">'+formatDate(it.pubDateISO)+'</div></div>';
         list.appendChild(li);
       }
     }
@@ -576,6 +492,7 @@
       showStatus('', false, 'news-status');
     }
 
+    /* ──────────────────── ACADEMIA FEED (unchanged) ──────────────────── */
     var ARXIV_QUERIES = [
       { q: 'all:"FPV drone" OR all:"FPV strike" AND (all:military OR all:warfare)' },
       { q: 'all:"small drones" OR all:"quadcopter" AND (all:combat OR all:battlefield)' },
@@ -593,7 +510,13 @@
           var authorNames = [];
           var authors = entry.getElementsByTagName('author');
           for (var k=0; k<Math.min(authors.length,2); k++) authorNames.push(textOf(authors[k],'name'));
-          out.push({ title: textOf(entry, 'title').replace(/\s+/g, ' '), link: textOf(entry, 'id'), publication: 'arXiv', author: authorNames.join(', '), pubDateISO: textOf(entry, 'published') });
+          out.push({
+            title: textOf(entry, 'title').replace(/\s+/g, ' '),
+            link: textOf(entry, 'id'),
+            publication: 'arXiv',
+            author: authorNames.join(', '),
+            pubDateISO: textOf(entry, 'published')
+          });
         }
         return out;
       } catch(e) { return []; }
@@ -607,7 +530,10 @@
         var it = ordered[i];
         var li = document.createElement('li');
         li.className = 'card academia-card';
-        li.innerHTML = '<a class="title" href="'+it.link+'" target="_blank">'+it.title+'</a><div class="meta"><div class="source">arXiv</div><div class="author">'+it.author+'</div><div class="date">'+formatDate(it.pubDateISO)+'</div></div>';
+        li.innerHTML = '<a class="title" href="'+it.link+'" target="_blank">'+it.title+'</a>'
+          + '<div class="meta"><div class="source">arXiv</div>'
+          + '<div class="author">'+it.author+'</div>'
+          + '<div class="date">'+formatDate(it.pubDateISO)+'</div></div>';
         list.appendChild(li);
       }
     }
@@ -623,12 +549,170 @@
       showStatus('', false, 'academia-status');
     }
 
+    /* ──────────────────── TELEGRAM FILTERED EMBEDS (Option B) ──────────────────── */
+    // Channels you provided:
+    var TG_CHANNELS_FOR_FEED = [
+      'DefenderDome',
+      'OSINTdefender',
+      'wartranslated',
+      'lost_armour',
+      'VictoryDrones2023',
+      'VictoryDrones',
+      'noel_reports',
+      'combat_ftg2',
+      'serhii_flash'
+    ];
+
+    var TG_MAX_TOTAL_EMBEDS = 10;      // overall cap across all channels
+    var TG_MAX_PER_CHANNEL  = 4;       // per-channel cap
+    var TG_CACHE_KEY        = 'tg_embed_cache_v1';
+    var TG_CACHE_TTL_MS     = 60 * 60 * 1000; // 1 hour
+
+    // Allow-list and context (inspired by your News queries)
+    var TG_ALLOW_CORE = [
+      'fpv','fpv drone','fpv attack','fpv strike','fpv drones',
+      'small uas','suas','small drone','quadcopter','hexacopter','octocopter',
+      'dji','mavic','phantom','inspire','matrice','first-person view'
+    ];
+    var TG_ALLOW_CONTEXT = [
+      'military','combat','warfare','battlefield','ukraine','russia',
+      'frontline','trench','strike','attack','munition','warhead',
+      'loitering','kamikaze','fuzing','ew','jamming','counter-uas',
+      'c-uas','anti-drone','counter drone','c-ram'
+    ];
+
+    function isTelegramBlocked(text) { return isTitleBlocked(text || ''); }
+    function norm(s){ return (s || '').toLowerCase(); }
+    function isTelegramAllowed(text) {
+      var t = norm(text);
+      var hasCore = TG_ALLOW_CORE.some(k => t.indexOf(k) !== -1);
+      var hasCtx  = TG_ALLOW_CONTEXT.some(k => t.indexOf(k) !== -1);
+      return hasCore && hasCtx;
+    }
+
+    async function fetchTelegramRSS(username){
+      try {
+        var rssUrl = 'https://rsshub.app/telegram/channel/' + encodeURIComponent(username);
+        var proxied = 'https://corsproxy.io/?' + encodeURIComponent(rssUrl + '?_=' + Date.now());
+        var res = await fetch(proxied);
+        var xml = new DOMParser().parseFromString(await res.text(), 'text/xml');
+        var items = xml.getElementsByTagName('item');
+        var out = [];
+        for (var i = 0; i < Math.min(items.length, 30); i++) {
+          var it = items[i];
+          var title = (it.getElementsByTagName('title')[0]?.textContent || '').trim();
+          var link  = (it.getElementsByTagName('link')[0]?.textContent  || '').trim();
+          var desc  = (it.getElementsByTagName('description')[0]?.textContent || '').trim();
+          var pub   = (it.getElementsByTagName('pubDate')[0]?.textContent || '').trim();
+          out.push({ title: title, link: link, description: desc, pubDateISO: pub, channel: username });
+        }
+        return out;
+      } catch(e) { return []; }
+    }
+
+    function parseTelegramPostId(link) {
+      if (!link) return null;
+      try {
+        var m = link.match(/t\.me\/([^\/\?\s]+)\/(\d+)/i);
+        return m ? (m[1] + '/' + m[2]) : null;
+      } catch(e){ return null; }
+    }
+
+    function renderTelegramEmbeds(itemsByChannel) {
+      var host = document.getElementById('tg-embed-list');
+      if (!host) return;
+      host.innerHTML = '';
+
+      var total = 0;
+      Object.keys(itemsByChannel).forEach(function(ch){
+        var arr = itemsByChannel[ch] || [];
+        var take = Math.min(arr.length, TG_MAX_PER_CHANNEL);
+        for (var i = 0; i < take && total < TG_MAX_TOTAL_EMBEDS; i++) {
+          var it = arr[i];
+          var postId = parseTelegramPostId(it.link);
+          if (!postId) continue;
+
+          var meta = document.createElement('div');
+          meta.className = 'account-card';
+          meta.innerHTML =
+            '<a class="handle" href="https://t.me/s/' + ch + '" target="_blank" rel="noopener">@' + ch + '</a>' +
+            '<span class="desc">' + (it.title || '').replace(/\s+/g,' ').trim() + '</span>' +
+            '<span class="tag">' + (formatDate(it.pubDateISO) || '') + '</span>';
+          host.appendChild(meta);
+
+          var wrap = document.createElement('div');
+          wrap.style.margin = '8px 0 14px 0';
+
+          var s = document.createElement('script');
+          s.async = true;
+          s.src = 'https://telegram.org/js/telegram-widget.js?22';
+          s.setAttribute('data-telegram-post', postId); // "<channel>/<postId>"
+          s.setAttribute('data-width', '100%');
+          s.setAttribute('data-dark', '1'); // dark mode
+          wrap.appendChild(s);
+
+          host.appendChild(wrap);
+          total++;
+          if (total >= TG_MAX_TOTAL_EMBEDS) break;
+        }
+      });
+    }
+
+    function saveTgCache(items) {
+      try {
+        localStorage.setItem(TG_CACHE_KEY, JSON.stringify(items || []));
+        localStorage.setItem(TG_CACHE_KEY + '_t', String(Date.now()));
+      } catch(e){}
+    }
+    function loadTgCache() {
+      try {
+        var raw = localStorage.getItem(TG_CACHE_KEY);
+        var when = parseInt(localStorage.getItem(TG_CACHE_KEY + '_t') || '0', 10);
+        var fresh = when && (Date.now() - when < TG_CACHE_TTL_MS);
+        return { items: raw ? JSON.parse(raw) : [], fresh: fresh };
+      } catch(e){ return { items: [], fresh: false }; }
+    }
+
+    function groupByChannel(items) {
+      var map = {};
+      (items || []).forEach(function(it){
+        map[it.channel] = map[it.channel] || [];
+        map[it.channel].push(it);
+      });
+      return map;
+    }
+
+    async function loadTelegramEmbeds(){
+      var cache = loadTgCache();
+      if (cache.items.length) {
+        renderTelegramEmbeds(groupByChannel(cache.items));
+      }
+
+      var all = [];
+      var results = await Promise.allSettled(TG_CHANNELS_FOR_FEED.map(fetchTelegramRSS));
+      results.forEach(function(r){ if (r.status==='fulfilled') all = all.concat(r.value); });
+
+      var filtered = (all || []).filter(function(it){
+        var text = (it.title + ' ' + (it.description || '')).toLowerCase();
+        return isTelegramAllowed(text) && !isTelegramBlocked(text);
+      });
+
+      var deduped = dedupeItems(filtered);
+      var ordered = sortDesc(deduped);
+      var limited = ordered.slice(0, 50);
+
+      saveTgCache(limited);
+      renderTelegramEmbeds(groupByChannel(limited));
+      updateSyncTime();
+    }
+
+    /* ──────────────────── BOOTSTRAP ──────────────────── */
     updateSyncTime();
     loadSummary();
     loadAcademiaSummary();
     loadNews();
     loadAcademia();
+    loadTelegramEmbeds();
   </script>
-
 </body>
 </html>

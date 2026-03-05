@@ -159,19 +159,33 @@
     }
     .status.error { border-color: #513333; background: #2a1e1e; color: #ffbcbc; }
 
+    /* ── Summary boxes ── */
+    .summary-outer {
+      margin-bottom: 0;
+    }
+
     .ai-summary-box {
       background: #1a2a1a;
       border: 1px solid #2a4a2a;
-      border-radius: 10px;
-      padding: 0.9rem 1rem;
-      margin-bottom: 0;
+      border-radius: 10px 10px 0 0;
+      padding: 0.9rem 1rem 0.7rem 1rem;
       font-size: 0.84rem;
       line-height: 1.65;
       color: #b8d4b8;
-      min-height: 120px;
-      max-height: 160px;
-      overflow-y: auto;
+      position: relative;
     }
+
+    .academia-summary-box {
+      background: #1a2233;
+      border: 1px solid #2a3a52;
+      border-radius: 10px 10px 0 0;
+      padding: 0.9rem 1rem 0.7rem 1rem;
+      font-size: 0.84rem;
+      line-height: 1.65;
+      color: #b8ccd4;
+      position: relative;
+    }
+
     .ai-summary-label {
       color: #6abf6a;
       font-size: 0.72rem;
@@ -179,31 +193,76 @@
       letter-spacing: 0.5px;
       margin-bottom: 0.6rem;
     }
-    .summary-divider {
-      border: none;
-      border-top: 1px solid #2a2a2a;
-      margin: 0.85rem 0;
-    }
 
-    .academia-summary-box {
-      background: #1a2233;
-      border: 1px solid #2a3a52;
-      border-radius: 10px;
-      padding: 0.9rem 1rem;
-      margin-bottom: 0;
-      font-size: 0.84rem;
-      line-height: 1.65;
-      color: #b8ccd4;
-      min-height: 120px;
-      max-height: 160px;
-      overflow-y: auto;
-    }
     .academia-summary-label {
       color: #6aaabf;
       font-size: 0.72rem;
       font-weight: bold;
       letter-spacing: 0.5px;
       margin-bottom: 0.6rem;
+    }
+
+    .summary-text-wrap {
+      overflow: hidden;
+      transition: max-height 0.35s ease;
+      max-height: 72px; /* collapsed — shows ~2 lines */
+      position: relative;
+    }
+
+    .summary-text-wrap.expanded {
+      max-height: 600px;
+    }
+
+    .summary-fade {
+      position: absolute;
+      bottom: 0;
+      left: 0;
+      right: 0;
+      height: 32px;
+      pointer-events: none;
+      transition: opacity 0.2s;
+    }
+
+    .ai-summary-box .summary-fade {
+      background: linear-gradient(to bottom, transparent, #1a2a1a);
+    }
+
+    .academia-summary-box .summary-fade {
+      background: linear-gradient(to bottom, transparent, #1a2233);
+    }
+
+    .summary-fade.hidden { opacity: 0; }
+
+    .summary-toggle-btn {
+      width: 100%;
+      background: none;
+      border: 1px solid #2a4a2a;
+      border-top: none;
+      border-radius: 0 0 10px 10px;
+      color: #6abf6a;
+      font-family: Courier;
+      font-size: 0.72rem;
+      padding: 0.3rem 0;
+      cursor: pointer;
+      opacity: 0.8;
+      transition: opacity 0.2s, background 0.2s;
+      letter-spacing: 0.5px;
+    }
+
+    .summary-toggle-btn.academia {
+      border-color: #2a3a52;
+      color: #6aaabf;
+    }
+
+    .summary-toggle-btn:hover {
+      opacity: 1;
+      background: rgba(255,255,255,0.03);
+    }
+
+    .summary-divider {
+      border: none;
+      border-top: 1px solid #2a2a2a;
+      margin: 0.85rem 0;
     }
 
     @media (max-width: 900px) { .columns { flex-direction: column; } }
@@ -248,9 +307,15 @@
         <h2>news</h2>
       </div>
 
-      <div class="ai-summary-box" id="ai-summary-box" style="display:none;">
-        <div class="ai-summary-label" id="ai-summary-label">AI SUMMARY</div>
-        <div id="ai-summary-text"></div>
+      <div class="summary-outer" id="news-summary-outer" style="display:none;">
+        <div class="ai-summary-box" id="ai-summary-box">
+          <div class="ai-summary-label" id="ai-summary-label">AI SUMMARY</div>
+          <div class="summary-text-wrap" id="news-text-wrap">
+            <div id="ai-summary-text"></div>
+            <div class="summary-fade" id="news-fade"></div>
+          </div>
+        </div>
+        <button class="summary-toggle-btn" id="news-toggle-btn" onclick="toggleSummary('news')">[ show more ▾ ]</button>
       </div>
       <hr class="summary-divider" id="summary-divider" style="display:none;">
 
@@ -265,9 +330,15 @@
         <h2>academia</h2>
       </div>
 
-      <div class="academia-summary-box" id="academia-summary-box" style="display:none;">
-        <div class="academia-summary-label" id="academia-summary-label">AI SUMMARY</div>
-        <div id="academia-summary-text"></div>
+      <div class="summary-outer" id="academia-summary-outer" style="display:none;">
+        <div class="academia-summary-box" id="academia-summary-box">
+          <div class="academia-summary-label" id="academia-summary-label">AI SUMMARY</div>
+          <div class="summary-text-wrap" id="academia-text-wrap">
+            <div id="academia-summary-text"></div>
+            <div class="summary-fade" id="academia-fade"></div>
+          </div>
+        </div>
+        <button class="summary-toggle-btn academia" id="academia-toggle-btn" onclick="toggleSummary('academia')">[ show more ▾ ]</button>
       </div>
       <hr class="summary-divider" id="academia-summary-divider" style="display:none;">
 
@@ -280,6 +351,22 @@
   </div>
 
   <script>
+    function toggleSummary(which) {
+      var wrap = document.getElementById(which === 'news' ? 'news-text-wrap' : 'academia-text-wrap');
+      var btn  = document.getElementById(which === 'news' ? 'news-toggle-btn' : 'academia-toggle-btn');
+      var fade = document.getElementById(which === 'news' ? 'news-fade' : 'academia-fade');
+      var expanded = wrap.classList.contains('expanded');
+      if (expanded) {
+        wrap.classList.remove('expanded');
+        btn.textContent = '[ show more ▾ ]';
+        fade.classList.remove('hidden');
+      } else {
+        wrap.classList.add('expanded');
+        btn.textContent = '[ show less ▴ ]';
+        fade.classList.add('hidden');
+      }
+    }
+
     var ACCOUNTS = [
       { handle: 'UAWeapons',       desc: 'Ukrainian weapons & drone footage tracker',                                          tag: 'OSINT · battlefield' },
       { handle: 'UAControlMap',    desc: 'Conflict mapping & drone incident tracking',                                         tag: 'OSINT · mapping' },
@@ -416,7 +503,7 @@
           if (!d || !d.summary) return;
           document.getElementById('ai-summary-label').textContent = 'AI SUMMARY · ' + (d.updated || '');
           document.getElementById('ai-summary-text').textContent = d.summary;
-          document.getElementById('ai-summary-box').style.display = 'block';
+          document.getElementById('news-summary-outer').style.display = 'block';
           document.getElementById('summary-divider').style.display = 'block';
         })
         .catch(function() {});
@@ -429,7 +516,7 @@
           if (!d || !d.summary) return;
           document.getElementById('academia-summary-label').textContent = 'AI SUMMARY · ' + (d.updated || '');
           document.getElementById('academia-summary-text').textContent = d.summary;
-          document.getElementById('academia-summary-box').style.display = 'block';
+          document.getElementById('academia-summary-outer').style.display = 'block';
           document.getElementById('academia-summary-divider').style.display = 'block';
         })
         .catch(function() {});

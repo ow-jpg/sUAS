@@ -182,6 +182,24 @@
       margin: 0.85rem 0;
     }
 
+    .academia-summary-box {
+      background: #1a2233;
+      border: 1px solid #2a3a52;
+      border-radius: 10px;
+      padding: 0.9rem 1rem;
+      margin-bottom: 0;
+      font-size: 0.84rem;
+      line-height: 1.65;
+      color: #b8ccd4;
+    }
+    .academia-summary-label {
+      color: #6aaabf;
+      font-size: 0.72rem;
+      font-weight: bold;
+      letter-spacing: 0.5px;
+      margin-bottom: 0.6rem;
+    }
+
     @media (max-width: 900px) { .columns { flex-direction: column; } }
   </style>
 </head>
@@ -240,8 +258,15 @@
       <div class="col-header">
         <h2>academia</h2>
       </div>
+
+      <div class="academia-summary-box" id="academia-summary-box" style="display:none;">
+        <div class="academia-summary-label" id="academia-summary-label">AI SUMMARY</div>
+        <div id="academia-summary-text"></div>
+      </div>
+      <hr class="summary-divider" id="academia-summary-divider" style="display:none;">
+
       <div id="academia-status" class="status" style="display:none;"></div>
-      <div class="scroll-wrap">
+      <div class="scroll-wrap" style="max-height:380px;">
         <ul id="feed3" class="academia-list"></ul>
       </div>
     </div>
@@ -391,7 +416,19 @@
         .catch(function() {});
     }
 
-    /* ── News — queries match the workflow exactly ── */
+    function loadAcademiaSummary() {
+      fetch('academia-summary.json?_=' + Date.now())
+        .then(function(r) { return r.json(); })
+        .then(function(d) {
+          if (!d || !d.summary) return;
+          document.getElementById('academia-summary-label').textContent = 'AI SUMMARY · ' + (d.updated || '');
+          document.getElementById('academia-summary-text').textContent = d.summary;
+          document.getElementById('academia-summary-box').style.display = 'block';
+          document.getElementById('academia-summary-divider').style.display = 'block';
+        })
+        .catch(function() {});
+    }
+
     var TITLE_BLOCKLIST = ['shahed','geran','tb2','bayraktar','akinci','mq-9','reaper','global hawk','long-range drone','strategic drone','drone light show','drone show','amazon drone','drone photography','best drone','drone review','firefighting drone','agriculture drone','medical drone','package delivery','delivery drone'];
 
     function isTitleBlocked(t) { var l=(t||'').toLowerCase(); return TITLE_BLOCKLIST.some(function(x){return l.indexOf(x)!==-1;}); }
@@ -495,6 +532,7 @@
 
     updateSyncTime();
     loadSummary();
+    loadAcademiaSummary();
     loadNews();
     loadAcademia();
   </script>

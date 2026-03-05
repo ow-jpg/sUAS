@@ -17,7 +17,7 @@ jobs:
       - name: Fetch and filter Telegram posts
         run: |
           python3 << 'EOF'
-          import urllib.request, urllib.error, xml.etree.ElementTree as ET, json, datetime, time
+          import urllib.request, urllib.error, json, datetime, time, re
 
           CHANNELS = [
             'DefenderDome',
@@ -51,12 +51,6 @@ jobs:
             'medical drone', 'package delivery', 'delivery drone',
           ]
 
-          RSSHUB_INSTANCES = [
-            'https://rsshub.app',
-            'https://rss.fatpandadev.com',
-            'https://rsshub.rssforever.com',
-          ]
-
           def is_allowed(text):
             t = (text or '').lower()
             if any(b in t for b in BLOCK):
@@ -65,55 +59,75 @@ jobs:
             has_ctx  = any(k in t for k in CONTEXT)
             return has_core and has_ctx
 
+          def strip_tags(html):
+            text = re.sub(r'<br\s*/?>', ' ', html, flags=re.IGNORECASE)
+            text = re.sub(r'<[^>]+>', '', text)
+            text = text.replace('&amp;', '&').replace('&lt;', '<').replace('&gt;', '>').replace('&quot;', '"').replace('&#39;', "'").replace('&nbsp;', ' ')
+            return re.sub(r'\s+', ' ', text).strip()
+
           def fetch_channel(channel):
-            for base in RSSHUB_INSTANCES:
-              url = f"{base}/telegram/channel/{channel}"
-              try:
-                req = urllib.request.Request(
-                  url,
-                  headers={"User-Agent": "Mozilla/5.0", "Accept": "application/rss+xml, application/xml, text/xml"}
-                )
-                with urllib.request.urlopen(req, timeout=12) as r:
-                  raw = r.read()
-                tree = ET.fromstring(raw)
-                posts = []
-                for item in tree.iter('item'):
-                  title = (item.findtext('title') or '').strip()
-                  link  = (item.findtext('link')  or '').strip()
-                  desc  = (item.findtext('description') or '').strip()
-                  pub   = (item.findtext('pubDate') or '').strip()
-                  text  = title + ' ' + desc
-                  if not is_allowed(text):
-                    continue
-                  # Clean HTML tags from description for a plain text snippet
-                  import re
-                  snippet = re.sub(r'<[^>]+>', ' ', desc)
-                  snippet = re.sub(r'\s+', ' ', snippet).strip()[:300]
-                  posts.append({
-                    'channel': channel,
-                    'title': title,
-                    'link': link,
-                    'snippet': snippet,
-                    'pubDate': pub,
-                  })
-                print(f"  {channel}: {len(posts)} matching posts (via {base})")
-                return posts
-              except Exception as e:
-                print(f"  {channel} failed on {base}: {e}")
-                time.sleep(1)
-            print(f"  {channel}: all instances failed")
-            return []
+            url = f"https://t.me/s/{channel}"
+            try:
+              req = urllib.request.Request(
+                url,
+                headers={
+                  "User-Agent": "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
+                  "Accept": "text/html,application/xhtml+xml",
+                  "Accept-Language": "en-US,en;q=0.9",
+                }
+              )
+              with urllib.request.urlopen(req, timeout=15) as r:
+                html = r.read().decode('utf-8', errors='replace')
+
+              # Extract message texts
+              texts = re.findall(
+                r'<div class="tgme_widget_message_text[^"]*"[^>]*>(.*?)</div>',
+                html, re.DOTALL
+              )
+              # Post links
+              links = re.findall(
+                r'<a class="tgme_widget_message_date"[^>]*href="(https://t\.me/[^"]+)"',
+                html
+              )
+              # ISO datetimes
+              dates = re.findall(
+                r'<time[^>]*datetime="([^"]+)"',
+                html
+              )
+
+              posts = []
+              for i in range(len(texts)):
+                text = strip_tags(texts[i])
+                if not text:
+                  continue
+                if not is_allowed(text):
+                  continue
+                link = links[i] if i < len(links) else f"https://t.me/s/{channel}"
+                date = dates[i] if i < len(dates) else ''
+                posts.append({
+                  'channel': channel,
+                  'snippet': text[:400],
+                  'link': link,
+                  'pubDate': date,
+                })
+
+              print(f"  {channel}: {len(posts)} matching posts")
+              return posts
+
+            except Exception as e:
+              print(f"  {channel}: failed — {e}")
+              return []
 
           all_posts = []
           for ch in CHANNELS:
             posts = fetch_channel(ch)
             all_posts.extend(posts)
+            time.sleep(0.8)
 
-          # Sort newest first
           def parse_date(d):
             try:
-              from email.utils import parsedate_to_datetime
-              return parsedate_to_datetime(d).timestamp()
+              from datetime import datetime, timezone
+              return datetime.fromisoformat(d.replace('Z', '+00:00')).timestamp()
             except:
               return 0
 
@@ -125,7 +139,7 @@ jobs:
           with open("telegram.json", "w") as f:
             json.dump(out, f)
 
-          print(f"\ntelegram.json written — {len(all_posts)} total posts across {len(CHANNELS)} channels.")
+          print(f"\ntelegram.json written — {len(all_posts)} total posts.")
           EOF
 
       - name: Commit telegram.json

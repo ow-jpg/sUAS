@@ -14,7 +14,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Fetch and filter Telegram posts
+      - name: Fetch, filter, translate and summarise Telegram posts
         env:
           OPENROUTER_API_KEY: ${{ secrets.OPENROUTER_API_KEY }}
         run: |
@@ -36,8 +36,6 @@ jobs:
             'serhii_flash',
           ]
 
-          # English + Ukrainian + Russian keywords
-          # A post must match at least one CORE and one CONTEXT term
           CORE = [
             # English
             'fpv', 'fpv drone', 'fpv attack', 'fpv strike', 'fpv drones',
@@ -46,7 +44,7 @@ jobs:
             # Ukrainian / Russian
             'fpv дрон', 'fpv дрони', 'fpv удар', 'fpv атака',
             'квадрокоптер', 'квадрокоптери', 'квадрокоптером',
-            'мавік', 'мавик', 'дji', 'мрія', 'бпла',  # бпла = UAV in Ukrainian/Russian
+            'мавік', 'мавик', 'бпла',
           ]
           CONTEXT = [
             # English
@@ -58,7 +56,7 @@ jobs:
             'україна', 'фронт', 'окопи', 'удар', 'атака', 'бойов',
             'війна', 'збройн', 'ворог', 'противник', 'позиц',
             # Russian
-            'украина', 'фронт', 'окопы', 'удар', 'атака', 'боев',
+            'украина', 'фронт', 'окопы', 'атака', 'боев',
             'война', 'вооруж', 'враг', 'противник', 'позици',
           ]
           BLOCK = [
@@ -67,7 +65,7 @@ jobs:
             'drone show', 'amazon drone', 'drone photography', 'best drone',
             'drone review', 'firefighting drone', 'agriculture drone',
             'medical drone', 'package delivery', 'delivery drone',
-            'шахед', 'герань', 'байрактар',  # Cyrillic versions of blocked terms
+            'шахед', 'герань', 'байрактар',
           ]
 
           def is_allowed(text):
@@ -83,6 +81,14 @@ jobs:
             text = re.sub(r'<[^>]+>', '', text)
             text = text.replace('&amp;', '&').replace('&lt;', '<').replace('&gt;', '>').replace('&quot;', '"').replace('&#39;', "'").replace('&nbsp;', ' ')
             return re.sub(r'\s+', ' ', text).strip()
+
+          def is_english(text):
+            """Rough check — if >25% of letters are Cyrillic, treat as non-English."""
+            letters = [c for c in text if c.isalpha()]
+            if not letters:
+              return True
+            cyrillic = sum(1 for c in letters if '\u0400' <= c <= '\u04ff')
+            return (cyrillic / len(letters)) < 0.25
 
           def fetch_channel(channel):
             url = f"https://t.me/s/{channel}"
@@ -123,21 +129,23 @@ jobs:
                 posts.append({
                   'channel': channel,
                   'snippet': text[:400],
+                  'snippet_en': None,   # filled in by translation step
+                  'needs_translation': not is_english(text),
                   'link': link,
                   'pubDate': date,
                 })
 
-              print(f"  {channel}: {len(posts)} matching posts")
+              print(f"  {channel}: {len(posts)} matching posts ({sum(1 for p in posts if p['needs_translation'])} need translation)")
               return posts
 
             except Exception as e:
               print(f"  {channel}: failed — {e}")
               return []
 
+          # ── Fetch all channels ───────────────────────────────────────────────
           all_posts = []
           for ch in CHANNELS:
-            posts = fetch_channel(ch)
-            all_posts.extend(posts)
+            all_posts.extend(fetch_channel(ch))
             time.sleep(0.8)
 
           def parse_date(d):
@@ -149,37 +157,79 @@ jobs:
 
           all_posts.sort(key=lambda p: parse_date(p['pubDate']), reverse=True)
 
+          # ── Translation (one API call per non-English post) ────────────────
+          to_translate = [(i, p) for i, p in enumerate(all_posts) if p['needs_translation']]
+          print(f"\n{len(to_translate)} posts need translation.")
+
+          def translate_post(text):
+            """Translate a single post to English. Returns translated string or None on failure."""
+            prompt = (
+              "Translate the following Telegram post into clear, natural English. "
+              "Return ONLY the translated text — no explanation, no quotes, no preamble.\n\n" + text
+            )
+            req = urllib.request.Request(
+              "https://openrouter.ai/api/v1/chat/completions",
+              data=json.dumps({
+                "model": "arcee-ai/trinity-large-preview:free",
+                "messages": [{"role": "user", "content": prompt}],
+                "max_tokens": 400,
+                "temperature": 0.2
+              }).encode(),
+              headers={
+                "Content-Type": "application/json",
+                "Authorization": f"Bearer {api_key}",
+                "HTTP-Referer": "https://github.com",
+                "X-Title": "sUAS Telegram Translator"
+              }
+            )
+            try:
+              with urllib.request.urlopen(req, timeout=20) as r:
+                data = json.loads(r.read())
+              return data["choices"][0]["message"]["content"].strip()
+            except Exception as e:
+              print(f"    Translation error: {e}")
+              return None
+
+          if api_key:
+            for idx, (i, p) in enumerate(to_translate):
+              print(f"  Translating post {idx+1}/{len(to_translate)} from @{p['channel']}...")
+              result = translate_post(p['snippet'])
+              if result:
+                all_posts[i]['snippet_en'] = result
+              time.sleep(0.5)  # avoid rate limiting
+
+          # For English posts (or failed translations), snippet_en = snippet
+          for p in all_posts:
+            if p['snippet_en'] is None:
+              p['snippet_en'] = p['snippet']
+            del p['needs_translation']   # clean up before saving
+
+          # ── Write telegram.json ──────────────────────────────────────────────
           updated = datetime.datetime.now(datetime.timezone.utc).strftime("%-d %b %Y, %H:%M UTC")
           out = {"posts": all_posts, "updated": updated, "count": len(all_posts)}
-
           with open("telegram.json", "w") as f:
             json.dump(out, f)
+          print(f"telegram.json written — {len(all_posts)} total posts.")
 
-          print(f"\ntelegram.json written — {len(all_posts)} total posts.")
-
-          # ── AI Summary ──────────────────────────────────────────────────────
-          if not all_posts:
+          # ── AI Summary ───────────────────────────────────────────────────────
+          if not all_posts or not api_key:
             with open("telegram-summary.json", "w") as f:
-              json.dump({"summary": "No matching sUAS/FPV posts found in this hour's feed.", "updated": updated}, f)
-            print("No posts — skipping AI summary.")
+              json.dump({
+                "summary": "No matching sUAS/FPV posts found in this hour's feed." if not all_posts else "Summary unavailable — API key not set.",
+                "updated": updated
+              }, f)
             exit(0)
 
-          if not api_key:
-            with open("telegram-summary.json", "w") as f:
-              json.dump({"summary": "Summary unavailable — API key not set.", "updated": updated}, f)
-            exit(0)
-
-          # Use the 20 most recent posts for the summary
           sample = all_posts[:20]
-          post_text = "\n".join(f"- [{p['channel']}] {p['snippet']}" for p in sample)
+          post_text = "\n".join(f"- [{p['channel']}] {p['snippet_en']}" for p in sample)
 
-          prompt = (
+          summary_prompt = (
             "You are a defence analyst tracking small UAS (small commercial quadcopters and FPV drones only). "
-            "The following posts are from Telegram channels monitoring the battlefield. Some posts may be in Ukrainian or Russian — read and understand them all. "
-            "Write a 3-5 sentence summary in English of what these posts collectively report. "
-            "Focus only on specific incidents, tactics, weapons, or developments mentioned — do not give broad overviews. "
+            "The following posts are from Telegram channels monitoring the battlefield, already translated into English. "
+            "Write a 3-5 sentence summary of what these posts collectively report. "
+            "Focus only on specific incidents, tactics, weapons, or developments — no broad overviews. "
             "If a post mentions a specific event, location, or detail, include it. "
-            "Be factual, specific, and concise. Do not start with 'This hour' or any time reference.\n\n"
+            "Be factual, specific, and concise. Do not start with a time reference.\n\n"
             "Posts:\n" + post_text
           )
 
@@ -188,7 +238,7 @@ jobs:
             "https://openrouter.ai/api/v1/chat/completions",
             data=json.dumps({
               "model": "arcee-ai/trinity-large-preview:free",
-              "messages": [{"role": "user", "content": prompt}],
+              "messages": [{"role": "user", "content": summary_prompt}],
               "max_tokens": 300,
               "temperature": 0.4
             }).encode(),
@@ -204,11 +254,8 @@ jobs:
               data = json.loads(r.read())
             summary = data["choices"][0]["message"]["content"].strip()
             print(f"Summary: {summary[:120]}...")
-          except urllib.error.HTTPError as e:
-            print(f"API error: HTTP {e.code}: {e.reason}")
-            summary = "Summary unavailable — API error."
           except Exception as e:
-            print(f"API error: {e}")
+            print(f"Summary API error: {e}")
             summary = "Summary unavailable — API error."
 
           with open("telegram-summary.json", "w") as f:

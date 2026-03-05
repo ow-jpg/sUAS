@@ -2,7 +2,8 @@ name: Daily News Summary
 
 on:
   schedule:
-    - cron: '0 23 * * *'
+    - cron: '0 23 * * *'      # every day at 11pm UTC — news
+    - cron: '0 22 * * 1'      # every Monday at 10pm UTC — academia
   workflow_dispatch:
 
 jobs:
@@ -14,7 +15,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Fetch RSS and summarise
+      - name: Fetch RSS and summarise news
         env:
           OPENROUTER_API_KEY: ${{ secrets.OPENROUTER_API_KEY }}
         run: |
@@ -118,10 +119,103 @@ jobs:
           print("summary.json written successfully.")
           EOF
 
-      - name: Commit summary.json
+      - name: Fetch arXiv and summarise academia (Mondays only)
+        if: github.event.schedule == '0 22 * * 1' || github.event_name == 'workflow_dispatch'
+        env:
+          OPENROUTER_API_KEY: ${{ secrets.OPENROUTER_API_KEY }}
+        run: |
+          python3 << 'EOF'
+          import urllib.request, urllib.parse, urllib.error, xml.etree.ElementTree as ET, json, os, datetime
+
+          api_key = os.environ.get("OPENROUTER_API_KEY", "")
+
+          ARXIV_QUERIES = [
+            'all:"FPV drone" OR all:"FPV strike" AND (all:military OR all:warfare)',
+            'all:"small drones" OR all:"quadcopter" AND (all:combat OR all:battlefield)',
+            'all:"counter-UAS" OR all:"anti-drone" AND (all:defense OR all:military)',
+          ]
+
+          papers = []
+          for q in ARXIV_QUERIES:
+            try:
+              url = f"https://export.arxiv.org/api/query?search_query={urllib.parse.quote(q)}&max_results=10&sortBy=submittedDate&sortOrder=descending"
+              req = urllib.request.Request(url, headers={"User-Agent": "Mozilla/5.0"})
+              with urllib.request.urlopen(req, timeout=15) as r:
+                raw = r.read()
+              tree = ET.fromstring(raw)
+              for entry in tree.iter('{http://www.w3.org/2005/Atom}entry'):
+                title = (entry.findtext('{http://www.w3.org/2005/Atom}title') or '').strip().replace('\n', ' ')
+                abstract = (entry.findtext('{http://www.w3.org/2005/Atom}summary') or '').strip().replace('\n', ' ')[:300]
+                if title:
+                  papers.append(f"Title: {title}\nAbstract: {abstract}")
+              print(f"  -> {len(papers)} papers so far")
+            except Exception as e:
+              print(f"  arXiv error: {e}")
+
+          papers = list(dict.fromkeys(papers))[:20]
+          print(f"Total papers after dedup: {len(papers)}")
+
+          updated = datetime.datetime.now(datetime.timezone.utc).strftime("%-d %b %Y, %H:%M UTC")
+
+          if not papers:
+            with open("academia-summary.json", "w") as f:
+              json.dump({"summary": "No matching academic papers found this week.", "updated": updated}, f)
+            exit(0)
+
+          paper_text = "\n\n".join(papers)
+
+          prompt = (
+            "You are a defence researcher specialising in small UAS (small commercial quadcopters and FPV drones). "
+            "Based on the following recent arXiv paper titles and abstracts, write a 3-5 sentence summary of the key research themes and technical developments this week. "
+            "Focus on what is new, interesting, or significant from a defence or military applications perspective. "
+            "Be specific about methods, findings, or technologies mentioned. "
+            "Do not be vague or generic — if a paper mentions a specific technique, sensor, or capability, include it. "
+            "Be concise and use plain English.\n\n"
+            "Papers:\n" + paper_text
+          )
+
+          print("Calling OpenRouter API for academia summary...")
+          req = urllib.request.Request(
+            "https://openrouter.ai/api/v1/chat/completions",
+            data=json.dumps({
+              "model": "arcee-ai/trinity-large-preview:free",
+              "messages": [{"role": "user", "content": prompt}],
+              "max_tokens": 300,
+              "temperature": 0.4
+            }).encode(),
+            headers={
+              "Content-Type": "application/json",
+              "Authorization": f"Bearer {api_key}",
+              "HTTP-Referer": "https://github.com",
+              "X-Title": "sUAS Academia Summariser"
+            }
+          )
+          try:
+            with urllib.request.urlopen(req) as r:
+              data = json.loads(r.read())
+            summary = data["choices"][0]["message"]["content"].strip()
+            print(f"Academia summary: {summary[:120]}...")
+          except urllib.error.HTTPError as e:
+            print(f"API error: HTTP {e.code}: {e.reason}")
+            print("Body:", e.read().decode())
+            with open("academia-summary.json", "w") as f:
+              json.dump({"summary": "Academia summary unavailable — API error.", "updated": updated}, f)
+            exit(0)
+          except Exception as e:
+            print(f"API error: {e}")
+            with open("academia-summary.json", "w") as f:
+              json.dump({"summary": "Academia summary unavailable — API error.", "updated": updated}, f)
+            exit(0)
+
+          with open("academia-summary.json", "w") as f:
+            json.dump({"summary": summary, "updated": updated}, f)
+          print("academia-summary.json written successfully.")
+          EOF
+
+      - name: Commit summaries
         run: |
           git config user.name "github-actions"
           git config user.email "actions@github.com"
-          git add summary.json
-          git diff --cached --quiet || git commit -m "chore: daily sUAS news summary"
+          git add summary.json academia-summary.json
+          git diff --cached --quiet || git commit -m "chore: update summaries"
           git push

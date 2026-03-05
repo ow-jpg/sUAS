@@ -224,16 +224,27 @@
     <div class="column">
       <div class="col-header">
         <h2>telegram</h2>
-        <button onclick="location.reload()" class="refresh-btn">[refresh system]</button>
       </div>
 
       <p class="x-fallback-header" style="margin-bottom:0.75rem;">
-        filtered posts — only sUAS/FPV keyword matches shown · <span id="tg-updated"></span>
+        filtered posts — sUAS/FPV keywords only · updates every hour · <span id="tg-updated"></span>
       </p>
 
+      <div class="summary-outer" id="tg-summary-outer" style="display:none;">
+        <div class="ai-summary-box" id="tg-summary-box" style="background:#1a2b1a; border-color:#2c4a2c;">
+          <div class="ai-summary-label" id="tg-summary-label" style="color:#6abf6a;">AI SUMMARY</div>
+          <div class="summary-text-wrap" id="tg-text-wrap">
+            <div id="tg-summary-text"></div>
+            <div class="summary-fade" id="tg-fade" style="background:linear-gradient(to bottom, transparent, #1a2b1a);"></div>
+          </div>
+        </div>
+        <button class="summary-toggle-btn" id="tg-toggle-btn" onclick="toggleSummary('tg')" style="border-color:#2c4a2c; color:#6abf6a;">[ show more ▾ ]</button>
+      </div>
+
+      <hr class="summary-divider" id="tg-summary-divider" style="display:none;">
       <div id="tg-status" class="status" style="display:none;"></div>
 
-      <div class="scroll-wrap" style="max-height:520px;">
+      <div class="scroll-wrap" style="max-height:380px;">
         <div id="tg-feed"></div>
       </div>
     </div>
@@ -291,9 +302,12 @@
 
   <script>
     function toggleSummary(which) {
-      var wrap = document.getElementById(which === 'news' ? 'news-text-wrap' : 'academia-text-wrap');
-      var btn = document.getElementById(which === 'news' ? 'news-toggle-btn' : 'academia-toggle-btn');
-      var fade = document.getElementById(which === 'news' ? 'news-fade' : 'academia-fade');
+      var wrapId  = which === 'news' ? 'news-text-wrap'  : which === 'tg' ? 'tg-text-wrap'  : 'academia-text-wrap';
+      var btnId   = which === 'news' ? 'news-toggle-btn' : which === 'tg' ? 'tg-toggle-btn' : 'academia-toggle-btn';
+      var fadeId  = which === 'news' ? 'news-fade'       : which === 'tg' ? 'tg-fade'       : 'academia-fade';
+      var wrap = document.getElementById(wrapId);
+      var btn = document.getElementById(btnId);
+      var fade = document.getElementById(fadeId);
       var expanded = wrap.classList.contains('expanded');
       if (expanded) {
         wrap.classList.remove('expanded');
@@ -551,7 +565,7 @@
       showStatus('', false, 'academia-status');
     }
 
-    /* ──────────────────── TELEGRAM (reads telegram.json from GitHub Actions) ──────────────────── */
+    /* ──────────────────── TELEGRAM (reads telegram.json + telegram-summary.json) ──────────────────── */
 
     function renderTelegramFeed(posts) {
       var host = document.getElementById('tg-feed');
@@ -591,10 +605,24 @@
         });
     }
 
+    function loadTelegramSummary() {
+      fetch('telegram-summary.json?_=' + Date.now())
+        .then(function(r) { return r.json(); })
+        .then(function(d) {
+          if (!d || !d.summary) return;
+          document.getElementById('tg-summary-label').textContent = 'AI SUMMARY · ' + (d.updated || '');
+          document.getElementById('tg-summary-text').textContent = d.summary;
+          document.getElementById('tg-summary-outer').style.display = 'block';
+          document.getElementById('tg-summary-divider').style.display = 'block';
+        })
+        .catch(function() {});
+    }
+
     /* ──────────────────── BOOTSTRAP ──────────────────── */
     updateSyncTime();
     loadSummary();
     loadAcademiaSummary();
+    loadTelegramSummary();
     loadNews();
     loadAcademia();
     loadTelegramFeed();

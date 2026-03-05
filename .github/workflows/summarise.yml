@@ -413,4 +413,5 @@ jobs:
             [ -f "$f" ] && git add "$f" || echo "Skipping $f (not found)"
           done
           git diff --cached --quiet || git commit -m "chore: update summaries"
+          git pull --rebase origin main
           git push

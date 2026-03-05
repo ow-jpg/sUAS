@@ -1,0 +1,14 @@
+# Telegram channels for the sUAS feed
+# Add one channel name per line (no @ symbol)
+# Lines starting with # are comments and are ignored
+# The workflow reads this file every hour automatically
+
+DefenderDome
+OSINTdefender
+wartranslated
+lost_armour
+VictoryDrones2023
+VictoryDrones
+noel_reports
+combat_ftg2
+serhii_flash

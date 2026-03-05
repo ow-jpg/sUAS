@@ -223,10 +223,192 @@ jobs:
           print("academia-summary.json written successfully.")
           EOF
 
+      - name: Generate combined intelligence summary
+        env:
+          OPENROUTER_API_KEY: ${{ secrets.OPENROUTER_API_KEY }}
+        run: |
+          python3 << 'EOF'
+          import urllib.request, urllib.error, json, os, datetime
+
+          api_key = os.environ.get("OPENROUTER_API_KEY", "")
+          today = datetime.datetime.now(datetime.timezone.utc)
+          today_str = today.strftime("%-d %b %Y")
+          updated = today.strftime("%-d %b %Y, %H:%M UTC")
+
+          def call_api(prompt, max_tokens=700):
+            req = urllib.request.Request(
+              "https://openrouter.ai/api/v1/chat/completions",
+              data=json.dumps({
+                "model": "arcee-ai/trinity-large-preview:free",
+                "messages": [{"role": "user", "content": prompt}],
+                "max_tokens": max_tokens,
+                "temperature": 0.4
+              }).encode(),
+              headers={
+                "Content-Type": "application/json",
+                "Authorization": f"Bearer {api_key}",
+                "HTTP-Referer": "https://github.com",
+                "X-Title": "sUAS Intelligence Summariser"
+              }
+            )
+            with urllib.request.urlopen(req, timeout=30) as r:
+              data = json.loads(r.read())
+            return data["choices"][0]["message"]["content"].strip()
+
+          # ── Load today's sources ─────────────────────────────────────────────
+          news_summary = ""
+          try:
+            with open("summary.json") as f:
+              news_summary = json.load(f).get("summary", "")
+            print(f"News summary: {len(news_summary)} chars")
+          except Exception as e:
+            print(f"No summary.json: {e}")
+
+          telegram_posts = []
+          try:
+            with open("telegram.json") as f:
+              telegram_posts = json.load(f).get("posts", [])[:15]
+            print(f"Telegram posts: {len(telegram_posts)}")
+          except Exception as e:
+            print(f"No telegram.json: {e}")
+
+          academia_summary = ""
+          try:
+            with open("academia-summary.json") as f:
+              academia_summary = json.load(f).get("summary", "")
+            print(f"Academia summary: {len(academia_summary)} chars")
+          except Exception as e:
+            print(f"No academia-summary.json: {e}")
+
+          # ── Load history and monthly digest ──────────────────────────────────
+          history = []
+          try:
+            with open("summary-history.json") as f:
+              history = json.load(f)
+            print(f"History: {len(history)} entries")
+          except:
+            print("No history yet — starting fresh.")
+
+          monthly_digest = ""
+          try:
+            with open("monthly-digest.json") as f:
+              monthly_digest = json.load(f).get("digest", "")
+            print(f"Monthly digest: {len(monthly_digest)} chars")
+          except:
+            print("No monthly digest yet.")
+
+          # ── Build and run combined summary prompt ────────────────────────────
+          if not news_summary and not telegram_posts:
+            print("No source material — skipping combined summary.")
+            combined = "Insufficient data for combined summary today."
+          elif not api_key:
+            combined = "Combined summary unavailable — API key not set."
+          else:
+            tg_text = "\n".join(
+              f"- [@{p['channel']}] {p.get('snippet_en') or p.get('snippet', '')}"
+              for p in telegram_posts
+            ) if telegram_posts else ""
+
+            history_text = "\n\n".join(
+              f"=== {e['date']} ===\n{e['summary']}"
+              for e in history[-7:][::-1]
+            ) if history else ""
+
+            prompt_parts = [
+              "You are a senior defence analyst writing a daily intelligence briefing on small UAS "
+              "(small commercial quadcopters and FPV drones) in active combat, with a focus on Ukraine "
+              "and any other conflicts where these systems are deployed.",
+              "",
+              "Write a detailed analytical briefing of 8-12 sentences. Your briefing must cover:",
+              "- Specific operational incidents and battlefield use reported today",
+              "- Tactical, technological, or doctrinal developments evident in today's reports",
+              "- How today's picture fits the recent trend — note continuity or change from prior days",
+              "- Any patterns, escalations, or shifts emerging over the past week",
+            ]
+
+            if academia_summary:
+              prompt_parts.append("- Relevant academic or research developments where applicable")
+
+            prompt_parts += [
+              "",
+              "Be specific: name locations, units, weapons, or figures where the sources mention them. "
+              "Do not pad with generalities. Write in clear, analytical prose as a continuous briefing — no bullet points.",
+              "",
+            ]
+
+            if news_summary:
+              prompt_parts += ["TODAY'S NEWS SUMMARY:", news_summary, ""]
+            if tg_text:
+              prompt_parts += ["TODAY'S FIELD REPORTS (Telegram, translated):", tg_text, ""]
+            if academia_summary:
+              prompt_parts += ["RECENT ACADEMIC RESEARCH CONTEXT:", academia_summary, ""]
+            if monthly_digest:
+              prompt_parts += ["THIS MONTH'S BACKGROUND CONTEXT:", monthly_digest, ""]
+            if history_text:
+              prompt_parts += [
+                "RECENT DAILY SUMMARIES (use for trend analysis — do not simply repeat):",
+                history_text, ""
+              ]
+
+            prompt = "\n".join(prompt_parts)
+            print(f"Prompt: {len(prompt)} chars. Calling API...")
+
+            try:
+              combined = call_api(prompt, max_tokens=700)
+              print(f"Combined summary: {combined[:120]}...")
+            except Exception as e:
+              print(f"Combined summary error: {e}")
+              combined = "Combined summary unavailable today — API error."
+
+          with open("combined-summary.json", "w") as f:
+            json.dump({"summary": combined, "updated": updated}, f)
+          print("combined-summary.json written.")
+
+          # ── Update 7-day rolling history ──────────────────────────────────────
+          # Strip any existing entry for today (handles re-runs cleanly)
+          history = [e for e in history if e.get("date") != today_str]
+          history.append({"date": today_str, "summary": combined})
+          history = history[-7:]  # keep last 7 days only
+          with open("summary-history.json", "w") as f:
+            json.dump(history, f, indent=2)
+          print(f"summary-history.json updated — {len(history)} entries.")
+
+          # ── Regenerate monthly digest on 1st of each month ───────────────────
+          is_first_of_month = today.day == 1
+          should_make_digest = (is_first_of_month or not monthly_digest) and len(history) >= 3 and api_key
+
+          if should_make_digest:
+            prev_month = (today.replace(day=1) - datetime.timedelta(days=1))
+            prev_month_name = prev_month.strftime("%B %Y")
+            print(f"Regenerating monthly digest for {prev_month_name}...")
+
+            history_for_digest = "\n\n".join(
+              f"=== {e['date']} ===\n{e['summary']}"
+              for e in history
+            )
+
+            digest_prompt = (
+              f"You are a senior defence analyst. Based on the following daily intelligence summaries, "
+              f"write a concise monthly digest of 6-8 sentences covering the key trends, developments, "
+              f"and shifts observed in small UAS (FPV drones and commercial quadcopters) use in combat. "
+              f"Focus on patterns, escalations, new tactics, and notable turning points. "
+              f"This digest will serve as background context for future daily analysis — be analytical and specific.\n\n"
+              f"Daily summaries:\n{history_for_digest}"
+            )
+
+            try:
+              digest = call_api(digest_prompt, max_tokens=500)
+              with open("monthly-digest.json", "w") as f:
+                json.dump({"digest": digest, "month": prev_month_name, "updated": updated}, f)
+              print(f"monthly-digest.json written for {prev_month_name}.")
+            except Exception as e:
+              print(f"Monthly digest error: {e}")
+          EOF
+
       - name: Commit summaries
         run: |
           git config user.name "github-actions"
           git config user.email "actions@github.com"
-          git add summary.json academia-summary.json
+          git add summary.json academia-summary.json combined-summary.json summary-history.json monthly-digest.json
           git diff --cached --quiet || git commit -m "chore: update summaries"
           git push

@@ -94,6 +94,9 @@
     .scroll-wrap::-webkit-scrollbar-track { background: transparent; }
     .scroll-wrap::-webkit-scrollbar-thumb { background: #3a3a3a; border-radius: 4px; }
     .scroll-wrap::-webkit-scrollbar-thumb:hover { background: #5a4370; }
+    #col-telegram .scroll-wrap::-webkit-scrollbar-thumb:hover { background: #3a7a3a; }
+    #col-news     .scroll-wrap::-webkit-scrollbar-thumb:hover { background: #5a4370; }
+    #col-academia .scroll-wrap::-webkit-scrollbar-thumb:hover { background: #2a5478; }
 
     .x-fallback-header {
       font-size: 0.82rem;
@@ -294,7 +297,7 @@
 
   <div class="columns">
     <!-- ──────────────────── TELEGRAM ──────────────────── -->
-    <div class="column">
+    <div class="column" id="col-telegram">
       <div class="col-above-feed">
       <div class="col-header">
         <h2>telegram</h2>
@@ -323,7 +326,7 @@
     </div>
 
     <!-- ──────────────────── NEWS (unchanged) ──────────────────── -->
-    <div class="column">
+    <div class="column" id="col-news">
       <div class="col-above-feed">
       <div class="col-header">
         <h2>news</h2>
@@ -351,7 +354,7 @@
     </div>
 
     <!-- ──────────────────── ACADEMIA (unchanged) ──────────────────── -->
-    <div class="column">
+    <div class="column" id="col-academia">
       <div class="col-above-feed">
       <div class="col-header">
         <h2>academia</h2>

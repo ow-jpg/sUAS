@@ -239,7 +239,6 @@
       </div>
 
       <hr class="summary-divider" id="tg-summary-divider" style="display:none;">
-      <div id="tg-status" class="status" style="display:none;"></div>
 
       <div class="scroll-wrap" style="max-height:380px;">
         <div id="tg-feed"></div>
@@ -569,21 +568,44 @@
       if (!host) return;
       host.innerHTML = '';
       if (!posts || posts.length === 0) {
-        showStatus('No matching posts found yet. The workflow may not have run yet.', false, 'tg-status');
+        var msg = document.createElement('div');
+        msg.className = 'status';
+        msg.textContent = 'No matching posts found yet. The workflow may not have run yet.';
+        host.appendChild(msg);
         return;
       }
-      showStatus('', false, 'tg-status');
       posts.forEach(function(p) {
-        var card = document.createElement('div');
-        card.className = 'account-card';
-        var dateStr = formatDate(p.pubDate) || '';
-        var snippet = (p.snippet || p.title || '').replace(/</g,'&lt;').replace(/>/g,'&gt;');
-        var link = p.link || ('https://t.me/s/' + p.channel);
-        card.innerHTML =
-          '<a class="handle" href="https://t.me/s/' + p.channel + '" target="_blank" rel="noopener">@' + p.channel + '</a>' +
-          '<a class="desc" href="' + link + '" target="_blank" rel="noopener" style="color:#ccc;text-decoration:none;">' + snippet + '</a>' +
-          '<span class="tag">' + dateStr + '</span>';
-        host.appendChild(card);
+        // Extract post path from link e.g. https://t.me/channel/12345
+        var postPath = null;
+        var m = (p.link || '').match(/t\.me\/([^\/\?\s]+)\/(\d+)/i);
+        if (m) postPath = m[1] + '/' + m[2];
+
+        if (postPath) {
+          // Official Telegram embed — shows images, videos, full content
+          var wrap = document.createElement('div');
+          wrap.style.marginBottom = '12px';
+          var s = document.createElement('script');
+          s.async = true;
+          s.src = 'https://telegram.org/js/telegram-widget.js?22';
+          s.setAttribute('data-telegram-post', postPath);
+          s.setAttribute('data-width', '100%');
+          s.setAttribute('data-dark', '1');
+          s.setAttribute('data-color', '3D7A3D');
+          wrap.appendChild(s);
+          host.appendChild(wrap);
+        } else {
+          // Fallback card if no parseable post link
+          var card = document.createElement('div');
+          card.className = 'card';
+          card.style.background = '#1e2e1e';
+          card.style.borderColor = '#2c4a2c';
+          var snippet = (p.snippet || '').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+          card.innerHTML =
+            '<a class="title" href="https://t.me/s/' + p.channel + '" target="_blank" rel="noopener">' + snippet + '</a>' +
+            '<div class="meta"><div class="source" style="color:#6abf6a;">@' + p.channel + '</div>' +
+            '<div class="date">' + (formatDate(p.pubDate) || '') + '</div></div>';
+          host.appendChild(card);
+        }
       });
     }
 

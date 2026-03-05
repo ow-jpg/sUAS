@@ -33,6 +33,9 @@
     .header-info { text-align: right; font-size: 0.72rem; color: #888; display: flex; flex-direction: column; gap: 4px; }
     .status-indicator { color: #44ff44; font-weight: bold; }
 
+    .col-above-feed {
+      min-height: 215px;
+    }
     .col-header {
       display: flex;
       justify-content: space-between;
@@ -196,7 +199,6 @@
     .summary-text-wrap {
       overflow: hidden;
       transition: max-height 0.35s ease;
-      height: 72px;
       max-height: 72px;
       position: relative;
     }
@@ -293,6 +295,7 @@
   <div class="columns">
     <!-- ──────────────────── TELEGRAM ──────────────────── -->
     <div class="column">
+      <div class="col-above-feed">
       <div class="col-header">
         <h2>telegram</h2>
         <span id="tg-updated" style="font-size:0.68rem; color:#666;"></span>
@@ -312,6 +315,7 @@
 
       <hr class="summary-divider" id="tg-summary-divider" style="display:none;">
       <div id="tg-status" class="status" style="display:none;"></div>
+      </div>
 
       <div class="scroll-wrap" style="max-height:600px;">
         <div id="tg-feed"></div>
@@ -320,6 +324,7 @@
 
     <!-- ──────────────────── NEWS (unchanged) ──────────────────── -->
     <div class="column">
+      <div class="col-above-feed">
       <div class="col-header">
         <h2>news</h2>
       </div>
@@ -338,6 +343,7 @@
 
       <hr class="summary-divider" id="summary-divider" style="display:none;">
       <div id="news-status" class="status" style="display:none;"></div>
+      </div>
 
       <div class="scroll-wrap" style="max-height:600px;">
         <ul id="feed2" class="news-list"></ul>
@@ -346,6 +352,7 @@
 
     <!-- ──────────────────── ACADEMIA (unchanged) ──────────────────── -->
     <div class="column">
+      <div class="col-above-feed">
       <div class="col-header">
         <h2>academia</h2>
       </div>
@@ -364,6 +371,7 @@
 
       <hr class="summary-divider" id="academia-summary-divider" style="display:none;">
       <div id="academia-status" class="status" style="display:none;"></div>
+      </div>
 
       <div class="scroll-wrap" style="max-height:600px;">
         <ul id="feed3" class="academia-list"></ul>
@@ -721,6 +729,31 @@
         .catch(function() {});
     }
 
+    /* ──────────────────── EQUALISE SUMMARY HEIGHTS ──────────────────── */
+    function equaliseSummaryHeights() {
+      var ids = ['tg-summary-outer', 'news-summary-outer', 'academia-summary-outer'];
+      // Only equalise visible ones
+      var visible = ids.filter(function(id) {
+        var el = document.getElementById(id);
+        return el && el.style.display !== 'none';
+      });
+      if (visible.length < 2) return;
+      // Reset first
+      visible.forEach(function(id) {
+        document.getElementById(id).style.minHeight = '';
+      });
+      // Measure
+      var maxH = 0;
+      visible.forEach(function(id) {
+        var h = document.getElementById(id).offsetHeight;
+        if (h > maxH) maxH = h;
+      });
+      // Apply
+      visible.forEach(function(id) {
+        document.getElementById(id).style.minHeight = maxH + 'px';
+      });
+    }
+
     /* ──────────────────── BOOTSTRAP ──────────────────── */
     updateSyncTime();
     loadSummary();
@@ -730,6 +763,8 @@
     loadNews();
     loadAcademia();
     loadTelegramFeed();
+    // Equalise after a short delay to let all summaries render
+    setTimeout(equaliseSummaryHeights, 2500);
   </script>
 </body>
 </html>

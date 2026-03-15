@@ -518,7 +518,7 @@
     }
 
     /* ──────────────────── NEWS FEED (unchanged) ──────────────────── */
-    var NEWS_CACHE_KEY = 'news_cache_v20';
+    var NEWS_CACHE_KEY = 'news_cache_v21';
     var ACAD_CACHE_KEY = 'acad_cache_v5';
     var CACHE_TTL_MS = 2 * 60 * 60 * 1000;
 
@@ -575,8 +575,8 @@
       return TITLE_BLOCKLIST.some(function(x){return l.indexOf(x)!==-1;});
     }
 
-    var QUERY_A = '"FPV drone" OR "FPV attack" OR "FPV strike" OR "FPV drones" OR "small drone" military combat warfare Ukraine battlefield';
-    var QUERY_B = '"small UAS" OR sUAS OR "commercial quadcopter" OR "DJI" military defense warfare "counter-drone" OR "anti-drone"';
+    var QUERY_A = '"FPV drone" OR "FPV attack" OR "FPV strike" OR "FPV drones" OR "small drone" OR "quadcopter" military combat warfare Ukraine battlefield';
+    var QUERY_B = '"small UAS" OR sUAS OR "commercial quadcopter" OR "DJI" military defense warfare "counter-drone" "anti-drone"';
     var FEEDS_TIER1 = [
       { url: 'https://news.google.com/rss/search?q=' + encodeURIComponent(QUERY_A) + '&hl=en&gl=US&ceid=US:en' },
       { url: 'https://news.google.com/rss/search?q=' + encodeURIComponent(QUERY_B) + '&hl=en&gl=US&ceid=US:en' },
@@ -600,24 +600,38 @@
       return null;
     }
 
+    // Google News RSS <link> is a bare text node between tags, not a child element,
+    // so getElementsByTagName misses it. This walks siblings to find it.
+    function rssItemLink(item) {
+      for (var n = item.firstChild; n; n = n.nextSibling) {
+        if (n.nodeType === 1 && n.nodeName.toLowerCase() === 'link') {
+          return (n.textContent || n.getAttribute('href') || '').trim();
+        }
+        // text node immediately after <link/> in Google News RSS
+        if (n.nodeType === 3 && n.previousSibling &&
+            n.previousSibling.nodeName && n.previousSibling.nodeName.toLowerCase() === 'link') {
+          var v = n.nodeValue.trim();
+          if (v) return v;
+        }
+      }
+      return textOf(item, 'guid');
+    }
+
     async function fetchOneFeed(f) {
       try {
-        // Append timestamp to the RSS URL so rss2json treats it as uncached each load
-        var freshUrl = f.url + '&_=' + Math.floor(Date.now() / 60000); // changes every minute
-        var apiUrl = 'https://api.rss2json.com/v1/api.json?rss_url=' + encodeURIComponent(freshUrl) + '&count=50';
-        var res = await fetch(apiUrl);
-        if (!res.ok) return [];
-        var data = await res.json();
-        if (!data || data.status !== 'ok' || !data.items) return [];
-        var out = [];
-        for (var i = 0; i < data.items.length; i++) {
-          var it = data.items[i];
-          var split = splitTitle(it.title || '');
+        var text = await fetchWithFallback(f.url);
+        if (!text) return [];
+        var xml = new DOMParser().parseFromString(text, 'text/xml');
+        var out = [], items = xml.getElementsByTagName('item');
+        for (var i = 0; i < Math.min(items.length, 50); i++) {
+          var it = items[i];
+          var rawTitle = textOf(it, 'title');
+          var split = splitTitle(rawTitle);
           out.push({
             title: split.headline,
-            link: it.link || it.guid || '',
+            link: rssItemLink(it),
             publication: split.publication,
-            pubDateISO: it.pubDate || ''
+            pubDateISO: textOf(it, 'pubDate')
           });
         }
         return out;
@@ -649,7 +663,7 @@
       results.forEach(function(r){ if (r.status==='fulfilled') all = all.concat(r.value); });
       saveCache(NEWS_CACHE_KEY, all);
       renderNews(all);
-      if (!all.length) showStatus('Could not load news feeds — rss2json may be rate-limited. Try refreshing in a moment.', true, 'news-status');
+      if (!all.length) showStatus('Could not load news feeds — all proxies failed. Try refreshing.', true, 'news-status');
       else showStatus('', false, 'news-status');
     }
 

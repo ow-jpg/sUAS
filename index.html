@@ -517,8 +517,9 @@
       });
     }
 
-    /* ──────────────────── NEWS FEED (unchanged) ──────────────────── */
-    var NEWS_CACHE_KEY = 'news_cache_v21';
+    /* ──────────────────── NEWS FEED ──────────────────── */
+
+    /* ──────────────────── ACADEMIA CACHE ──────────────────── */
     var ACAD_CACHE_KEY = 'acad_cache_v5';
     var CACHE_TTL_MS = 2 * 60 * 60 * 1000;
 
@@ -535,6 +536,25 @@
         var when = parseInt(localStorage.getItem(key + '_t') || '0', 10);
         return { items: raw ? JSON.parse(raw) : [], when: when, fresh: when && (Date.now() - when < CACHE_TTL_MS) };
       } catch(e) { return { items: [], when: 0, fresh: false }; }
+    }
+
+    /* ──────────────────── CORS PROXY (academia only) ──────────────────── */
+    var CORS_PROXIES = [
+      function(u) { return 'https://corsproxy.io/?' + encodeURIComponent(u); },
+      function(u) { return 'https://api.allorigins.win/raw?url=' + encodeURIComponent(u); },
+      function(u) { return 'https://api.codetabs.com/v1/proxy?quest=' + encodeURIComponent(u); }
+    ];
+
+    async function fetchWithFallback(url) {
+      for (var i = 0; i < CORS_PROXIES.length; i++) {
+        try {
+          var res = await fetch(CORS_PROXIES[i](url));
+          if (!res.ok) continue;
+          var text = await res.text();
+          if (text && text.length > 100) return text;
+        } catch(e) {}
+      }
+      return null;
     }
 
     function loadSummary() {
@@ -575,77 +595,12 @@
       return TITLE_BLOCKLIST.some(function(x){return l.indexOf(x)!==-1;});
     }
 
-    var QUERY_A = '"FPV drone" OR "FPV attack" OR "FPV strike" OR "FPV drones" OR "small drone" OR "quadcopter" military combat warfare Ukraine battlefield';
-    var QUERY_B = '"small UAS" OR sUAS OR "commercial quadcopter" OR "DJI" military defense warfare "counter-drone" "anti-drone"';
-    var FEEDS_TIER1 = [
-      { url: 'https://news.google.com/rss/search?q=' + encodeURIComponent(QUERY_A) + '&hl=en&gl=US&ceid=US:en' },
-      { url: 'https://news.google.com/rss/search?q=' + encodeURIComponent(QUERY_B) + '&hl=en&gl=US&ceid=US:en' },
-    ];
-
-    var CORS_PROXIES = [
-      function(u) { return 'https://corsproxy.io/?' + encodeURIComponent(u); },
-      function(u) { return 'https://api.allorigins.win/raw?url=' + encodeURIComponent(u); },
-      function(u) { return 'https://api.codetabs.com/v1/proxy?quest=' + encodeURIComponent(u); }
-    ];
-
-    async function fetchWithFallback(url) {
-      for (var i = 0; i < CORS_PROXIES.length; i++) {
-        try {
-          var res = await fetch(CORS_PROXIES[i](url));
-          if (!res.ok) continue;
-          var text = await res.text();
-          if (text && text.length > 100) return text;
-        } catch(e) {}
-      }
-      return null;
-    }
-
-    // Google News RSS <link> is a bare text node between tags, not a child element,
-    // so getElementsByTagName misses it. This walks siblings to find it.
-    function rssItemLink(item) {
-      for (var n = item.firstChild; n; n = n.nextSibling) {
-        if (n.nodeType === 1 && n.nodeName.toLowerCase() === 'link') {
-          return (n.textContent || n.getAttribute('href') || '').trim();
-        }
-        // text node immediately after <link/> in Google News RSS
-        if (n.nodeType === 3 && n.previousSibling &&
-            n.previousSibling.nodeName && n.previousSibling.nodeName.toLowerCase() === 'link') {
-          var v = n.nodeValue.trim();
-          if (v) return v;
-        }
-      }
-      return textOf(item, 'guid');
-    }
-
-    async function fetchOneFeed(f) {
-      try {
-        var text = await fetchWithFallback(f.url);
-        if (!text) return [];
-        var xml = new DOMParser().parseFromString(text, 'text/xml');
-        var out = [], items = xml.getElementsByTagName('item');
-        for (var i = 0; i < Math.min(items.length, 50); i++) {
-          var it = items[i];
-          var rawTitle = textOf(it, 'title');
-          var split = splitTitle(rawTitle);
-          out.push({
-            title: split.headline,
-            link: rssItemLink(it),
-            publication: split.publication,
-            pubDateISO: textOf(it, 'pubDate')
-          });
-        }
-        return out;
-      } catch(e) { return []; }
-    }
-
     function renderNews(items) {
       var list = document.getElementById('feed2');
       list.innerHTML = '';
-      var filtered = (items||[]).filter(function(it){ return !isTitleBlocked(it.title); });
-      var ordered = sortDesc(dedupeItems(filtered));
-      var n = Math.min(ordered.length, 20);
+      var n = Math.min(items.length, 20);
       for (var i = 0; i < n; i++) {
-        var it = ordered[i];
+        var it = items[i];
         var li = document.createElement('li');
         li.className = 'card';
         li.innerHTML = '<a class="title" href="'+it.link+'" target="_blank">'+it.title+'</a>'
@@ -655,16 +610,20 @@
       }
     }
 
-    async function loadNews() {
-      var cache = loadCache(NEWS_CACHE_KEY);
-      if (cache.items.length) renderNews(cache.items);
-      var all = [];
-      var results = await Promise.allSettled(FEEDS_TIER1.map(fetchOneFeed));
-      results.forEach(function(r){ if (r.status==='fulfilled') all = all.concat(r.value); });
-      saveCache(NEWS_CACHE_KEY, all);
-      renderNews(all);
-      if (!all.length) showStatus('Could not load news feeds — all proxies failed. Try refreshing.', true, 'news-status');
-      else showStatus('', false, 'news-status');
+    function loadNews() {
+      fetch('news.json?_=' + Date.now())
+        .then(function(r) { return r.json(); })
+        .then(function(d) {
+          var items = d.articles || [];
+          var filtered = items.filter(function(it){ return !isTitleBlocked(it.title); });
+          var ordered = sortDesc(dedupeItems(filtered));
+          renderNews(ordered);
+          if (!ordered.length) showStatus('No news articles found — the workflow may not have run yet.', true, 'news-status');
+          else showStatus('', false, 'news-status');
+        })
+        .catch(function() {
+          showStatus('news.json not found — run the workflow in GitHub Actions to generate it.', true, 'news-status');
+        });
     }
 
     /* ──────────────────── ACADEMIA FEED (unchanged) ──────────────────── */

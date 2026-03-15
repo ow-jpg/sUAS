@@ -36,6 +36,7 @@ jobs:
           BLOCK = ['shahed','geran','tb2','bayraktar','akinci','mq-9','reaper','global hawk','long-range drone','strategic drone','drone light show','drone show','amazon drone','drone photography','best drone','drone review','firefighting drone','agriculture drone','medical drone','package delivery','delivery drone']
 
           headlines = []
+          articles = []
           for url in FEEDS:
             try:
               print(f"Fetching: {url[:80]}...")
@@ -49,13 +50,37 @@ jobs:
                 tl = t.lower()
                 if not t: continue
                 if any(b in tl for b in BLOCK): continue
+                link = (item.findtext('link') or '').strip()
+                pub_date = (item.findtext('pubDate') or '').strip()
+                headline = t
+                publication = ''
                 if ' - ' in t:
-                  t = t[:t.rfind(' - ')].strip()
-                headlines.append(t)
+                  headline = t[:t.rfind(' - ')].strip()
+                  publication = t[t.rfind(' - ')+3:].strip()
+                headlines.append(headline)
+                articles.append({
+                  'title': headline,
+                  'link': link,
+                  'publication': publication,
+                  'pubDateISO': pub_date,
+                })
                 count += 1
               print(f"  -> {count} headlines from this feed")
             except Exception as e:
               print(f"  Feed error: {e}")
+
+          # Dedupe articles by title, preserve order
+          seen_titles = set()
+          deduped_articles = []
+          for a in articles:
+            if a['title'] not in seen_titles:
+              seen_titles.add(a['title'])
+              deduped_articles.append(a)
+
+          # Write news.json for the frontend to consume directly
+          with open("news.json", "w") as f:
+            json.dump({"articles": deduped_articles, "updated": datetime.datetime.now(datetime.timezone.utc).strftime("%-d %b %Y, %H:%M UTC")}, f)
+          print(f"news.json written — {len(deduped_articles)} articles.")
 
           headlines = list(dict.fromkeys(headlines))[:30]
           print(f"Total headlines after dedup: {len(headlines)}")
@@ -409,7 +434,7 @@ jobs:
         run: |
           git config user.name "github-actions"
           git config user.email "actions@github.com"
-          for f in summary.json academia-summary.json combined-summary.json summary-history.json monthly-digest.json; do
+          for f in news.json summary.json academia-summary.json combined-summary.json summary-history.json monthly-digest.json; do
             [ -f "$f" ] && git add "$f" || echo "Skipping $f (not found)"
           done
           git diff --cached --quiet || git commit -m "chore: update summaries"

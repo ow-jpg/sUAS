@@ -518,7 +518,7 @@
     }
 
     /* ──────────────────── NEWS FEED (unchanged) ──────────────────── */
-    var NEWS_CACHE_KEY = 'news_cache_v17';
+    var NEWS_CACHE_KEY = 'news_cache_v18';
     var ACAD_CACHE_KEY = 'acad_cache_v5';
     var CACHE_TTL_MS = 2 * 60 * 60 * 1000;
 
@@ -575,8 +575,8 @@
       return TITLE_BLOCKLIST.some(function(x){return l.indexOf(x)!==-1;});
     }
 
-    var QUERY_A = '("FPV drone" OR "FPV attack" OR "FPV strike" OR "FPV drones" OR "small drone" OR "quadcopter") AND (military OR combat OR warfare OR Ukraine OR battlefield) after:2025-12-31 when:7d';
-    var QUERY_B = '("small UAS" OR sUAS OR "commercial quadcopter" OR "DJI") AND (military OR defense OR warfare OR "counter-drone" OR "anti-drone") after:2025-12-31 when:7d';
+    var QUERY_A = '"FPV drone" OR "FPV attack" OR "FPV strike" OR "FPV drones" OR "small drone" military combat warfare Ukraine battlefield';
+    var QUERY_B = '"small UAS" OR sUAS OR "commercial quadcopter" OR "DJI" military defense warfare "counter-drone" OR "anti-drone"';
     var FEEDS_TIER1 = [
       { url: 'https://news.google.com/rss/search?q=' + encodeURIComponent(QUERY_A) + '&hl=en&gl=US&ceid=US:en' },
       { url: 'https://news.google.com/rss/search?q=' + encodeURIComponent(QUERY_B) + '&hl=en&gl=US&ceid=US:en' },

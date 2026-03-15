@@ -518,7 +518,7 @@
     }
 
     /* ──────────────────── NEWS FEED (unchanged) ──────────────────── */
-    var NEWS_CACHE_KEY = 'news_cache_v19';
+    var NEWS_CACHE_KEY = 'news_cache_v20';
     var ACAD_CACHE_KEY = 'acad_cache_v5';
     var CACHE_TTL_MS = 2 * 60 * 60 * 1000;
 
@@ -602,14 +602,15 @@
 
     async function fetchOneFeed(f) {
       try {
-        // rss2json fetches the RSS server-side, avoiding CORS proxy blocks on Google News
-        var apiUrl = 'https://api.rss2json.com/v1/api.json?rss_url=' + encodeURIComponent(f.url);
+        // Append timestamp to the RSS URL so rss2json treats it as uncached each load
+        var freshUrl = f.url + '&_=' + Math.floor(Date.now() / 60000); // changes every minute
+        var apiUrl = 'https://api.rss2json.com/v1/api.json?rss_url=' + encodeURIComponent(freshUrl) + '&count=50';
         var res = await fetch(apiUrl);
         if (!res.ok) return [];
         var data = await res.json();
         if (!data || data.status !== 'ok' || !data.items) return [];
         var out = [];
-        for (var i = 0; i < Math.min(data.items.length, 30); i++) {
+        for (var i = 0; i < data.items.length; i++) {
           var it = data.items[i];
           var split = splitTitle(it.title || '');
           out.push({

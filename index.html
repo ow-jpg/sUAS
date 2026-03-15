@@ -518,7 +518,7 @@
     }
 
     /* ──────────────────── NEWS FEED (unchanged) ──────────────────── */
-    var NEWS_CACHE_KEY = 'news_cache_v18';
+    var NEWS_CACHE_KEY = 'news_cache_v19';
     var ACAD_CACHE_KEY = 'acad_cache_v5';
     var CACHE_TTL_MS = 2 * 60 * 60 * 1000;
 
@@ -602,19 +602,21 @@
 
     async function fetchOneFeed(f) {
       try {
-        var text = await fetchWithFallback(f.url + '&_=' + Date.now());
-        if (!text) return [];
-        var xml = new DOMParser().parseFromString(text, 'text/xml');
-        var out = [], items = xml.getElementsByTagName('item');
-        for (var i = 0; i < Math.min(items.length, 30); i++) {
-          var it = items[i];
-          var rawTitle = textOf(it, 'title');
-          var split = splitTitle(rawTitle);
+        // rss2json fetches the RSS server-side, avoiding CORS proxy blocks on Google News
+        var apiUrl = 'https://api.rss2json.com/v1/api.json?rss_url=' + encodeURIComponent(f.url);
+        var res = await fetch(apiUrl);
+        if (!res.ok) return [];
+        var data = await res.json();
+        if (!data || data.status !== 'ok' || !data.items) return [];
+        var out = [];
+        for (var i = 0; i < Math.min(data.items.length, 30); i++) {
+          var it = data.items[i];
+          var split = splitTitle(it.title || '');
           out.push({
             title: split.headline,
-            link: textOf(it,'link'),
+            link: it.link || it.guid || '',
             publication: split.publication,
-            pubDateISO: textOf(it,'pubDate')
+            pubDateISO: it.pubDate || ''
           });
         }
         return out;
@@ -646,7 +648,7 @@
       results.forEach(function(r){ if (r.status==='fulfilled') all = all.concat(r.value); });
       saveCache(NEWS_CACHE_KEY, all);
       renderNews(all);
-      if (!all.length) showStatus('Could not load news feeds — all proxies failed. Try refreshing.', true, 'news-status');
+      if (!all.length) showStatus('Could not load news feeds — rss2json may be rate-limited. Try refreshing in a moment.', true, 'news-status');
       else showStatus('', false, 'news-status');
     }
 

@@ -518,8 +518,8 @@
     }
 
     /* ──────────────────── NEWS FEED (unchanged) ──────────────────── */
-    var NEWS_CACHE_KEY = 'news_cache_v16';
-    var ACAD_CACHE_KEY = 'acad_cache_v4';
+    var NEWS_CACHE_KEY = 'news_cache_v17';
+    var ACAD_CACHE_KEY = 'acad_cache_v5';
     var CACHE_TTL_MS = 2 * 60 * 60 * 1000;
 
     function saveCache(key, items) {
@@ -582,11 +582,29 @@
       { url: 'https://news.google.com/rss/search?q=' + encodeURIComponent(QUERY_B) + '&hl=en&gl=US&ceid=US:en' },
     ];
 
+    var CORS_PROXIES = [
+      function(u) { return 'https://corsproxy.io/?' + encodeURIComponent(u); },
+      function(u) { return 'https://api.allorigins.win/raw?url=' + encodeURIComponent(u); },
+      function(u) { return 'https://api.codetabs.com/v1/proxy?quest=' + encodeURIComponent(u); }
+    ];
+
+    async function fetchWithFallback(url) {
+      for (var i = 0; i < CORS_PROXIES.length; i++) {
+        try {
+          var res = await fetch(CORS_PROXIES[i](url));
+          if (!res.ok) continue;
+          var text = await res.text();
+          if (text && text.length > 100) return text;
+        } catch(e) {}
+      }
+      return null;
+    }
+
     async function fetchOneFeed(f) {
       try {
-        var proxy = 'https://corsproxy.io/?' + encodeURIComponent(f.url + '&_=' + Date.now());
-        var res = await fetch(proxy);
-        var xml = new DOMParser().parseFromString(await res.text(), 'text/xml');
+        var text = await fetchWithFallback(f.url + '&_=' + Date.now());
+        if (!text) return [];
+        var xml = new DOMParser().parseFromString(text, 'text/xml');
         var out = [], items = xml.getElementsByTagName('item');
         for (var i = 0; i < Math.min(items.length, 30); i++) {
           var it = items[i];
@@ -628,7 +646,8 @@
       results.forEach(function(r){ if (r.status==='fulfilled') all = all.concat(r.value); });
       saveCache(NEWS_CACHE_KEY, all);
       renderNews(all);
-      showStatus('', false, 'news-status');
+      if (!all.length) showStatus('Could not load news feeds — all proxies failed. Try refreshing.', true, 'news-status');
+      else showStatus('', false, 'news-status');
     }
 
     /* ──────────────────── ACADEMIA FEED (unchanged) ──────────────────── */
@@ -641,8 +660,9 @@
     async function fetchArxiv(queryObj) {
       try {
         var url = 'https://export.arxiv.org/api/query?search_query=' + encodeURIComponent(queryObj.q) + '&max_results=10&sortBy=submittedDate&sortOrder=descending';
-        var res = await fetch('https://corsproxy.io/?' + encodeURIComponent(url));
-        var xml = new DOMParser().parseFromString(await res.text(), 'text/xml');
+        var text = await fetchWithFallback(url);
+        if (!text) return [];
+        var xml = new DOMParser().parseFromString(text, 'text/xml');
         var entries = xml.getElementsByTagName('entry'), out = [];
         for (var j = 0; j < entries.length; j++) {
           var entry = entries[j];
@@ -685,7 +705,8 @@
       results.forEach(function(r){ if (r.status==='fulfilled') combined = combined.concat(r.value); });
       saveCache(ACAD_CACHE_KEY, combined);
       renderAcademia(combined);
-      showStatus('', false, 'academia-status');
+      if (!combined.length) showStatus('Could not load arXiv feeds — all proxies failed. Try refreshing.', true, 'academia-status');
+      else showStatus('', false, 'academia-status');
     }
 
     /* ──────────────────── TELEGRAM (reads telegram.json + telegram-summary.json) ──────────────────── */

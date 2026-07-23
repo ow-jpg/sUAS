@@ -1,9 +1,5 @@
 [
   {
-    "date": "13 Jul 2026",
-    "summary": "Combined summary unavailable today \u2014 API error."
-  },
-  {
     "date": "14 Jul 2026",
     "summary": "Combined summary unavailable today \u2014 API error."
   },
@@ -25,6 +21,10 @@
   },
   {
     "date": "21 Jul 2026",
+    "summary": "Combined summary unavailable today \u2014 API error."
+  },
+  {
+    "date": "23 Jul 2026",
     "summary": "Combined summary unavailable today \u2014 API error."
   }
 ]
